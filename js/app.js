@@ -27,7 +27,7 @@ if (bootIcon) bootIcon.innerHTML = ICONS.spinner;
 const ICON_TAG_MAP = {
   ICON_SETTINGS: 'settings',
   ICON_SEARCH: 'search',
-  ICON_BOLT: 'bolt',
+  ICON_PULSE: 'pulse',
   ICON_BACK: 'back',
   ICON_PHONE: 'phone',
   ICON_VIDEO: 'video',
@@ -120,7 +120,7 @@ function renderAuthScreen() {
   const tpl = document.getElementById('tpl-auth').content.cloneNode(true);
   root.appendChild(tpl);
   fillIcons(root);
-  document.getElementById('brand-icon').innerHTML = ICONS.bolt;
+  document.getElementById('brand-icon').innerHTML = ICONS.pulse;
 
   const loginPreview = document.getElementById('register-avatar-preview');
   loginPreview.innerHTML = ICONS.camera;
@@ -177,6 +177,7 @@ function renderAuthScreen() {
       renderAppScreen();
       initRealtime();
     } catch (err) {
+      console.error(err);
       errBox.textContent = 'Неверный юзернейм или пароль';
       btn.disabled = false;
       btn.textContent = 'Войти';
@@ -219,7 +220,16 @@ function renderAuthScreen() {
       initRealtime();
       showToast('Добро пожаловать в Импульс');
     } catch (err) {
-      errBox.textContent = err.message === 'User already registered' ? 'Этот юзернейм уже занят' : 'Не получилось создать аккаунт, попробуйте ещё раз';
+      console.error(err);
+      if (err.message === 'EMAIL_CONFIRMATION_REQUIRED') {
+        errBox.textContent = 'В проекте Supabase включено подтверждение почты. Откройте Authentication → Providers → Email и выключите Confirm email, затем попробуйте снова.';
+      } else if (err.message === 'User already registered') {
+        errBox.textContent = 'Этот юзернейм уже занят';
+      } else if (err.message && err.message.toLowerCase().includes('row-level security')) {
+        errBox.textContent = 'Профиль не сохранился из-за настроек доступа. Проверьте, что schema.sql выполнен полностью.';
+      } else {
+        errBox.textContent = err.message || 'Не получилось создать аккаунт, попробуйте ещё раз';
+      }
       btn.disabled = false;
       btn.textContent = 'Создать аккаунт';
     }
@@ -231,8 +241,8 @@ function renderAppScreen() {
   const tpl = document.getElementById('tpl-app').content.cloneNode(true);
   root.appendChild(tpl);
   fillIcons(root);
-  document.getElementById('app-brand-icon').innerHTML = ICONS.bolt;
-  document.getElementById('chat-empty').querySelector('.icn').innerHTML = ICONS.bolt;
+  document.getElementById('app-brand-icon').innerHTML = ICONS.pulse;
+  document.getElementById('chat-empty').querySelector('.icn').innerHTML = ICONS.pulse;
 
   document.getElementById('btn-open-settings').addEventListener('click', openSettingsModal);
 

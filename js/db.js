@@ -6,6 +6,9 @@ const DB = {
     const fakeEmail = `${username.toLowerCase()}@impulse.local`;
     const { data, error } = await sb.auth.signUp({ email: fakeEmail, password });
     if (error) throw error;
+    if (!data.session) {
+      throw new Error('EMAIL_CONFIRMATION_REQUIRED');
+    }
     const userId = data.user.id;
     const { error: profileError } = await sb.from('profiles').insert({
       id: userId,

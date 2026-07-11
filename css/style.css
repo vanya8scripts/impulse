@@ -153,6 +153,14 @@ input, textarea { font-family: inherit; color: inherit; }
   margin-bottom: 6px;
 }
 
+.brand-mark .icn svg path {
+  stroke-dasharray: 30 24;
+  animation: travelPulse 2.2s linear infinite;
+}
+@keyframes travelPulse {
+  to { stroke-dashoffset: -54; }
+}
+
 .brand-mark {
   width: 38px;
   height: 38px;
@@ -209,14 +217,21 @@ input, textarea { font-family: inherit; color: inherit; }
 
 .avatar-picker {
   display: flex;
-  justify-content: center;
-  margin-bottom: 22px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.avatar-picker-hint {
+  font-size: 12.5px;
+  color: var(--text-faint);
 }
 
 .avatar-upload {
   position: relative;
-  width: 88px;
-  height: 88px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   cursor: pointer;
 }
@@ -224,27 +239,48 @@ input, textarea { font-family: inherit; color: inherit; }
 .avatar-upload .avatar {
   width: 100%;
   height: 100%;
-  font-size: 30px;
+  font-size: 32px;
   border: 2px dashed var(--border);
+  transition: border-color 0.2s;
+}
+
+.avatar-upload:hover .avatar {
+  border-color: var(--accent);
 }
 
 .avatar-upload.has-image .avatar {
   border: 2px solid var(--accent);
 }
 
+.avatar-upload-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(10,7,20,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: white;
+}
+.avatar-upload:hover .avatar-upload-overlay { opacity: 1; }
+.avatar-upload-overlay .icn { width: 22px; height: 22px; }
+
 .avatar-upload-badge {
   position: absolute;
   bottom: -2px;
   right: -2px;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 3px solid var(--panel);
+  box-shadow: 0 6px 16px var(--accent-soft);
 }
 .avatar-upload-badge .icn { width: 15px; height: 15px; }
 
