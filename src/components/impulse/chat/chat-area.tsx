@@ -22,6 +22,9 @@ import {
   Bell,
   Info,
   Trash2,
+  Megaphone,
+  Users,
+  BadgeCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -74,6 +77,8 @@ export function ChatArea() {
   if (!chat || !profile) return null;
 
   const isDirect = chat.type === "direct";
+  const isChannel = chat.type === "channel";
+  const isGroup = chat.type === "group";
   const peerOnline = peer ? presence[peer.id] : false;
   const isTyping = activeChatId ? typing[activeChatId] : false;
 
@@ -85,7 +90,19 @@ export function ChatArea() {
           ? "в сети"
           : formatLastSeen(peer.last_seen_at)
       : "Пользователь"
-    : `${chat.members.length} участников`;
+    : isChannel
+      ? `${chat.subscriber_count || chat.members.length} подписчиков`
+      : `${chat.members.length} участников`;
+
+  const headerName = isDirect
+    ? peer?.display_name || "Пользователь"
+    : chat.title || (isChannel ? "Канал" : "Группа");
+
+  const ChatIcon = isChannel ? Megaphone : isGroup ? Users : null;
+  const showVerified = isDirect
+    ? peer?.is_verified || peer?.is_admin
+    : chat.is_official || chat.is_verified;
+  const canCall = isDirect;
 
   const startCall = async (type: CallType) => {
     if (!peer || !profile) return;
@@ -158,17 +175,22 @@ export function ChatArea() {
             onClick={() => setInfoOpen(true)}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1.5 py-1 text-left transition-colors hover:bg-accent/50"
           >
-            <Avatar
-              profile={peer}
-              name={isDirect ? peer?.display_name : chat.title || "Группа"}
-              seed={isDirect ? peer?.id : chat.id}
-              src={isDirect ? undefined : chat.avatar_url}
-              size="md"
-              online={isDirect ? peerOnline : undefined}
-            />
+            {isDirect ? (
+              <Avatar profile={peer} size="md" online={peerOnline} />
+            ) : (
+              <div className="relative">
+                <Avatar name={headerName} seed={chat.id} src={chat.avatar_url} size="md" showVerified={false} />
+                <div className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-background">
+                  <ChatIcon className={cn("h-3 w-3", isChannel ? "text-primary" : "text-muted-foreground")} />
+                </div>
+              </div>
+            )}
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">
-                {isDirect ? peer?.display_name || "Пользователь" : chat.title || "Группа"}
+              <div className="flex items-center gap-1">
+                <span className="truncate text-sm font-semibold">{headerName}</span>
+                {showVerified && (
+                  <BadgeCheck className="h-4 w-4 shrink-0 fill-primary text-primary-foreground" />
+                )}
               </div>
               <div
                 className={cn(
@@ -184,20 +206,24 @@ export function ChatArea() {
           </button>
 
           <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => startCall("audio")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-              title="Аудиозвонок"
-            >
-              <Phone className="h-[18px] w-[18px]" />
-            </button>
-            <button
-              onClick={() => startCall("video")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-              title="Видеозвонок"
-            >
-              <Video className="h-[18px] w-[18px]" />
-            </button>
+            {canCall && (
+              <>
+                <button
+                  onClick={() => startCall("audio")}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                  title="Аудиозвонок"
+                >
+                  <Phone className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  onClick={() => startCall("video")}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                  title="Видеозвонок"
+                >
+                  <Video className="h-[18px] w-[18px]" />
+                </button>
+              </>
+            )}
             <button
               onClick={() => setInfoOpen((o) => !o)}
               className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-primary"

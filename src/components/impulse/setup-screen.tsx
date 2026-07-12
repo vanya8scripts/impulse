@@ -50,10 +50,7 @@ export function SetupScreen() {
       <div className="relative mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <div className="mb-10 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-primary/40">
-            <svg viewBox="0 0 64 64" className="h-9 w-9" fill="none">
-              <path d="M34 12C34 11 33 10 32 11L31 12C22 21 18 27 18 35C18 43 24 50 32 50C40 50 46 43 46 35C46 29 42 24 38 20L37 22C40 25 42 29 42 35C42 41 38 46 32 46C26 46 22 41 22 35C22 29 25 24 32 18L33 17C33.5 16.5 34 16 34 15V12Z" fill="white"/>
-              <circle cx="32" cy="35" r="6" fill="white"/>
-            </svg>
+            <span className="text-3xl font-bold tracking-tight">И</span>
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Добро пожаловать в Импульс</h1>
           <p className="mt-2 text-muted-foreground">

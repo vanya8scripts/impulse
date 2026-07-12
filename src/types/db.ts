@@ -1,4 +1,4 @@
-export type ChatType = "direct" | "group";
+export type ChatType = "direct" | "group" | "channel";
 
 export type MessageType =
   | "text"
@@ -18,6 +18,10 @@ export type CallStatus = "ringing" | "accepted" | "declined" | "ended" | "missed
 export type ThemeName = "violet" | "aurora" | "midnight" | "rose" | "emerald";
 export type ColorMode = "light" | "dark";
 
+export type PrivacySetting = "everyone" | "contacts" | "nobody";
+
+export type ChatMemberRole = "owner" | "admin" | "member" | "subscriber";
+
 export interface Profile {
   id: string;
   username: string;
@@ -29,6 +33,15 @@ export interface Profile {
   chat_wallpaper: string | null;
   last_seen_at: string;
   created_at: string;
+  is_verified: boolean;
+  is_admin: boolean;
+  is_blocked: boolean;
+  block_reason: string | null;
+  is_muted: boolean;
+  mute_reason: string | null;
+  mute_until: string | null;
+  who_can_message: PrivacySetting;
+  who_can_call: PrivacySetting;
 }
 
 export interface Chat {
@@ -39,15 +52,20 @@ export interface Chat {
   created_by: string;
   created_at: string;
   last_message_at: string | null;
+  is_official: boolean;
+  is_verified: boolean;
+  description: string | null;
+  subscriber_count: number;
 }
 
 export interface ChatMember {
   chat_id: string;
   user_id: string;
-  role: "owner" | "member";
+  role: ChatMemberRole;
   joined_at: string;
   muted: boolean;
   pinned: boolean;
+  last_read_at: string | null;
 }
 
 export interface ChatWithDetails extends Chat {

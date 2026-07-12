@@ -4,8 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTheme } from "@/components/impulse/theme-provider";
-import { updateProfile, uploadAvatar } from "@/lib/impulse";
-import { supabase } from "@/lib/supabase";
+import {
+  updateProfile,
+  uploadAvatar,
+  changePasswordWithCurrent,
+  signOutAllOtherSessions,
+} from "@/lib/impulse";
 import { Avatar } from "@/components/impulse/avatar";
 import {
   Camera,
@@ -20,12 +24,16 @@ import {
   Shield,
   LogOut,
   X,
+  Lock,
+  Monitor,
+  MessageSquare,
+  Phone,
 } from "lucide-react";
-import type { ColorMode, ThemeName } from "@/types/db";
+import type { ColorMode, ThemeName, PrivacySetting } from "@/types/db";
 import { isValidUsername, cn } from "@/lib/format";
 import { toast } from "sonner";
 
-type Tab = "profile" | "appearance" | "security";
+type Tab = "profile" | "appearance" | "privacy" | "security";
 
 const THEMES: { id: ThemeName; name: string; from: string; to: string }[] = [
   { id: "violet", name: "Аметист", from: "from-violet-500", to: "to-fuchsia-500" },
@@ -33,6 +41,12 @@ const THEMES: { id: ThemeName; name: string; from: string; to: string }[] = [
   { id: "midnight", name: "Полночь", from: "from-indigo-500", to: "to-violet-600" },
   { id: "rose", name: "Закат", from: "from-rose-500", to: "to-orange-500" },
   { id: "emerald", name: "Изумруд", from: "from-emerald-500", to: "to-teal-500" },
+];
+
+const PRIVACY_OPTIONS: { value: PrivacySetting; label: string }[] = [
+  { value: "everyone", label: "Все" },
+  { value: "contacts", label: "Контакты" },
+  { value: "nobody", label: "Никто" },
 ];
 
 export function SettingsModal({
@@ -56,8 +70,13 @@ export function SettingsModal({
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [newPassword, setNewPassword] = useState("");
+  const [currentPass, setCurrentPass] = useState("");
+  const [newPass, setNewPass] = useState("");
   const [changingPass, setChangingPass] = useState(false);
+
+  const [whoCanMessage, setWhoCanMessage] = useState<PrivacySetting>("everyone");
+  const [whoCanCall, setWhoCanCall] = useState<PrivacySetting>("everyone");
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
 
   useEffect(() => {
     if (open && profile) {
@@ -66,6 +85,8 @@ export function SettingsModal({
       setBio(profile.bio || "");
       setAvatarPreview(profile.avatar_url);
       setAvatarFile(null);
+      setWhoCanMessage(profile.who_can_message || "everyone");
+      setWhoCanCall(profile.who_can_call || "everyone");
       if (profile.theme) setTheme(profile.theme);
       if (profile.color_mode) setMode(profile.color_mode);
     }
@@ -85,7 +106,7 @@ export function SettingsModal({
     reader.readAsDataURL(file);
   };
 
-  const clearAvatar = async () => {
+  const clearAvatar = () => {
     setAvatarFile(null);
     setAvatarPreview(null);
   };
@@ -108,6 +129,8 @@ export function SettingsModal({
         avatar_url: avatarUrl,
         theme,
         color_mode: mode,
+        who_can_message: whoCanMessage,
+        who_can_call: whoCanCall,
       });
       setProfile(updated);
       toast.success("Профиль обновлён");
@@ -121,13 +144,14 @@ export function SettingsModal({
     }
   };
 
-  const changePassword = async () => {
-    if (newPassword.length < 6) return toast.error("Минимум 6 символов");
+  const handleChangePassword = async () => {
+    if (!currentPass) return toast.error("Введите текущий пароль");
+    if (newPass.length < 6) return toast.error("Новый пароль минимум 6 символов");
     setChangingPass(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setNewPassword("");
+      await changePasswordWithCurrent(currentPass, newPass);
+      setCurrentPass("");
+      setNewPass("");
       toast.success("Пароль изменён");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка");
@@ -136,11 +160,23 @@ export function SettingsModal({
     }
   };
 
+  const handleSignOutOthers = async () => {
+    setSigningOutOthers(true);
+    try {
+      await signOutAllOtherSessions();
+      toast.success("Другие сессии завершены");
+    } catch {
+      toast.error("Не удалось");
+    } finally {
+      setSigningOutOthers(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">Настройки</DialogTitle>
-        <div className="flex h-[560px] max-h-[85vh]">
+        <div className="flex h-[600px] max-h-[88vh]">
           <div className="hidden w-48 shrink-0 flex-col border-r border-border bg-sidebar/50 p-2 sm:flex">
             <div className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Настройки
@@ -150,6 +186,9 @@ export function SettingsModal({
             </TabButton>
             <TabButton active={tab === "appearance"} onClick={() => setTab("appearance")} icon={<Palette className="h-4 w-4" />}>
               Оформление
+            </TabButton>
+            <TabButton active={tab === "privacy"} onClick={() => setTab("privacy")} icon={<MessageSquare className="h-4 w-4" />}>
+              Приватность
             </TabButton>
             <TabButton active={tab === "security"} onClick={() => setTab("security")} icon={<Shield className="h-4 w-4" />}>
               Безопасность
@@ -162,9 +201,10 @@ export function SettingsModal({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-            <div className="flex items-center gap-1 border-b border-border p-2 sm:hidden">
+            <div className="flex items-center gap-1 overflow-x-auto border-b border-border p-2 sm:hidden no-scrollbar">
               <TabPill active={tab === "profile"} onClick={() => setTab("profile")}>Профиль</TabPill>
               <TabPill active={tab === "appearance"} onClick={() => setTab("appearance")}>Оформление</TabPill>
+              <TabPill active={tab === "privacy"} onClick={() => setTab("privacy")}>Приватность</TabPill>
               <TabPill active={tab === "security"} onClick={() => setTab("security")}>Безопасность</TabPill>
             </div>
 
@@ -217,7 +257,7 @@ export function SettingsModal({
                     value={username}
                     onChange={(v) => setUsername(v.replace(/\s/g, "").toLowerCase())}
                     maxLength={20}
-                    hint="Латиница, цифры, подчёркивание. 3–20 символов."
+                    hint="Латиница, цифры, подчёркивание. 3-20 символов."
                   />
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-sm font-medium">
@@ -258,7 +298,7 @@ export function SettingsModal({
 
                   <div>
                     <h3 className="mb-3 text-sm font-medium">Акцентный цвет</h3>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {THEMES.map((t) => (
                         <button
                           key={t.id}
@@ -272,17 +312,39 @@ export function SettingsModal({
                         >
                           <span className={cn("h-8 w-8 rounded-lg bg-gradient-to-br", t.from, t.to)} />
                           <span className="text-sm font-medium">{t.name}</span>
-                          {theme === t.id && (
-                            <Check className="ml-auto h-4 w-4 text-primary" />
-                          )}
+                          {theme === t.id && <Check className="ml-auto h-4 w-4 text-primary" />}
                         </button>
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
 
+              {tab === "privacy" && (
+                <div className="space-y-5">
+                  <PrivacySection
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    title="Кто может писать сообщения"
+                    value={whoCanMessage}
+                    onChange={(v) => setWhoCanMessage(v)}
+                  />
+                  <PrivacySection
+                    icon={<Phone className="h-4 w-4" />}
+                    title="Кто может звонить"
+                    value={whoCanCall}
+                    onChange={(v) => setWhoCanCall(v)}
+                  />
+                  <button
+                    onClick={saveProfile}
+                    disabled={saving}
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Сохранить
+                  </button>
                   <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                    Тема применяется мгновенно и сохраняется в твоём профиле —
-                    на всех устройствах, где ты войдёшь.
+                    Настройки приватности применяются к новым запросам общения.
+                    Существующие чаты продолжат работать.
                   </div>
                 </div>
               )}
@@ -290,34 +352,64 @@ export function SettingsModal({
               {tab === "security" && (
                 <div className="space-y-5">
                   <div>
-                    <h3 className="mb-1 text-sm font-medium">Смена пароля</h3>
+                    <h3 className="mb-1 flex items-center gap-2 text-sm font-medium">
+                      <Lock className="h-4 w-4" />
+                      Смена пароля
+                    </h3>
                     <p className="mb-3 text-xs text-muted-foreground">
-                      Пароль используется для входа по юзернейму.
+                      Для смены пароля введите текущий.
                     </p>
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <input
                         type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        value={currentPass}
+                        onChange={(e) => setCurrentPass(e.target.value)}
+                        placeholder="Текущий пароль"
+                        className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      />
+                      <input
+                        type="password"
+                        value={newPass}
+                        onChange={(e) => setNewPass(e.target.value)}
                         placeholder="Новый пароль"
-                        className="h-11 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                        className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                       />
                       <button
-                        onClick={changePassword}
-                        disabled={changingPass || newPassword.length < 6}
-                        className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                        onClick={handleChangePassword}
+                        disabled={changingPass || !currentPass || newPass.length < 6}
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
                       >
                         {changingPass ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-                        Изменить
+                        Изменить пароль
                       </button>
                     </div>
                   </div>
 
+                  <div className="border-t border-border pt-5">
+                    <h3 className="mb-1 flex items-center gap-2 text-sm font-medium">
+                      <Monitor className="h-4 w-4" />
+                      Сессии
+                    </h3>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Завершить все другие активные сессии на других устройствах.
+                    </p>
+                    <button
+                      onClick={handleSignOutOthers}
+                      disabled={signingOutOthers}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium hover:bg-accent disabled:opacity-60"
+                    >
+                      {signingOutOthers ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                      Выйти на других устройствах
+                    </button>
+                  </div>
+
                   <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <div className="mb-2 text-sm font-medium">Сессия</div>
+                    <div className="mb-2 text-sm font-medium">Аккаунт</div>
                     <div className="space-y-1.5 text-xs text-muted-foreground">
                       <div>ID: <span className="font-mono">{profile.id.slice(0, 8)}…</span></div>
                       <div>Юзернейм: @{profile.username}</div>
+                      {profile.is_verified && <div className="text-primary">Верифицирован</div>}
+                      {profile.is_admin && <div className="text-primary">Администратор</div>}
                       <div>
                         В Импульсе с{" "}
                         {new Date(profile.created_at).toLocaleDateString("ru-RU", {
@@ -387,7 +479,7 @@ function TabPill({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-lg px-3 py-1.5 text-sm transition-colors",
+        "shrink-0 rounded-lg px-3 py-1.5 text-sm transition-colors",
         active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground"
       )}
     >
@@ -451,5 +543,42 @@ function ModeCard({
       <span className="text-sm font-medium">{label}</span>
       {active && <Check className="ml-auto h-4 w-4 text-primary" />}
     </button>
+  );
+}
+
+function PrivacySection({
+  icon,
+  title,
+  value,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: PrivacySetting;
+  onChange: (v: PrivacySetting) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <span className="text-muted-foreground">{icon}</span>
+        {title}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {PRIVACY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "rounded-xl border-2 px-3 py-2.5 text-sm transition-all",
+              value === opt.value
+                ? "border-primary bg-primary/5 font-medium text-primary"
+                : "border-border hover:border-primary/40"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

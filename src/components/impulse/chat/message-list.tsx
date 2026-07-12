@@ -18,6 +18,10 @@ interface Group {
 export function MessageList({ chatId }: { chatId: string }) {
   const messages = useChatsStore((s) => s.messages[chatId] || EMPTY_MESSAGES);
   const typing = useChatsStore((s) => s.typing[chatId]);
+  const memberIds = useChatsStore((s) => {
+    const chat = s.chats.find((c) => c.id === chatId);
+    return chat?.members.map((m) => m.user_id) || [];
+  });
   const peerId = useChatsStore((s) => {
     const chat = s.chats.find((c) => c.id === chatId);
     return chat?.peer?.id || null;
@@ -89,6 +93,7 @@ export function MessageList({ chatId }: { chatId: string }) {
                   showAvatar={showAvatar}
                   isFirstOfGroup={isFirstOfGroup}
                   peerName={peer?.display_name}
+                  memberIds={memberIds}
                 />
               );
             })}

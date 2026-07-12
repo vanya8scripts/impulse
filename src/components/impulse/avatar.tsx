@@ -1,8 +1,8 @@
 "use client";
 
-import { avatarGradient, initialsFrom } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { avatarGradient, initialsFrom, cn } from "@/lib/format";
 import type { Profile } from "@/types/db";
+import { BadgeCheck } from "lucide-react";
 
 interface AvatarProps {
   profile?: Profile | null;
@@ -13,6 +13,7 @@ interface AvatarProps {
   online?: boolean;
   className?: string;
   ring?: boolean;
+  showVerified?: boolean;
 }
 
 const SIZE_MAP = {
@@ -31,6 +32,14 @@ const DOT_SIZE = {
   xl: "h-4 w-4",
 };
 
+const VERIFIED_SIZE = {
+  xs: "h-3 w-3",
+  sm: "h-3.5 w-3.5",
+  md: "h-4 w-4",
+  lg: "h-5 w-5",
+  xl: "h-6 w-6",
+};
+
 export function Avatar({
   profile,
   name,
@@ -40,10 +49,12 @@ export function Avatar({
   online,
   className,
   ring,
+  showVerified = true,
 }: AvatarProps) {
   const displayName = profile?.display_name || name || "?";
   const avatarSrc = src ?? profile?.avatar_url ?? null;
   const gradientSeed = seed || profile?.username || profile?.id || displayName;
+  const isVerified = showVerified && (profile?.is_verified || profile?.is_admin);
 
   return (
     <div className={cn("relative inline-flex shrink-0", className)}>
@@ -69,6 +80,16 @@ export function Avatar({
             online ? "bg-[var(--online)]" : "bg-muted-foreground/40"
           )}
         />
+      )}
+      {isVerified && (
+        <span
+          className={cn(
+            "absolute -bottom-0.5 -right-0.5 text-primary bg-background rounded-full",
+            VERIFIED_SIZE[size]
+          )}
+        >
+          <BadgeCheck className="h-full w-full fill-primary text-primary-foreground" />
+        </span>
       )}
     </div>
   );

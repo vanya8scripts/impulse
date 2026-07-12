@@ -223,7 +223,7 @@ export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails
   const { data: memberships, error: mErr } = await supabase
     .from("chat_members")
     .select(
-      "chat_id, role, joined_at, muted, pinned, chat:chats(*)"
+      "chat_id, role, joined_at, muted, pinned, last_read_at, chat:chats(*)"
     )
     .eq("user_id", userId);
   if (mErr) throw mErr;
@@ -234,6 +234,7 @@ export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails
     joined_at: string;
     muted: boolean;
     pinned: boolean;
+    last_read_at: string | null;
     chat: Chat;
   }>;
 
@@ -287,11 +288,15 @@ export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails
       .limit(1)
       .maybeSingle();
 
-    const { count } = await supabase
+    let unreadQuery = supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("chat_id", row.chat_id)
       .neq("sender_id", userId);
+    if (row.last_read_at) {
+      unreadQuery = unreadQuery.gt("created_at", row.last_read_at);
+    }
+    const { count } = await unreadQuery;
 
     result.push({
       ...row.chat,
@@ -388,9 +393,10 @@ export async function deleteMessage(messageId: string) {
 }
 
 export async function markChatRead(chatId: string, userId: string) {
+  const now = new Date().toISOString();
   await supabase
     .from("chat_members")
-    .update({ last_read_message_id: null })
+    .update({ last_read_at: now })
     .eq("chat_id", chatId)
     .eq("user_id", userId);
 
@@ -400,6 +406,19 @@ export async function markChatRead(chatId: string, userId: string) {
     .eq("chat_id", chatId)
     .neq("sender_id", userId)
     .neq("status", "read");
+}
+
+export async function fetchUnreadCount(chatId: string, userId: string, lastReadAt: string | null) {
+  let query = supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId)
+    .neq("sender_id", userId);
+  if (lastReadAt) {
+    query = query.gt("created_at", lastReadAt);
+  }
+  const { count } = await query;
+  return count || 0;
 }
 
 export async function updateProfile(userId: string, patch: Partial<Profile>) {
@@ -452,6 +471,103 @@ export async function toggleChatMuted(chatId: string, userId: string, muted: boo
     .update({ muted })
     .eq("chat_id", chatId)
     .eq("user_id", userId);
+}
+
+export async function createChannel(title: string, description?: string, avatarUrl?: string) {
+  const { data, error } = await supabase.rpc("create_channel", {
+    p_title: title,
+    p_description: description || null,
+    p_avatar_url: avatarUrl || null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function createGroup(title: string, description?: string, avatarUrl?: string) {
+  const { data, error } = await supabase.rpc("create_group", {
+    p_title: title,
+    p_description: description || null,
+    p_avatar_url: avatarUrl || null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function subscribeToChat(chatId: string) {
+  const { error } = await supabase.rpc("subscribe_to_chat", { p_chat_id: chatId });
+  if (error) throw error;
+  return true;
+}
+
+export async function fetchAllProfiles() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as Profile[];
+}
+
+export async function adminBlockUser(userId: string, reason: string) {
+  const { error } = await supabase.rpc("admin_block_user", {
+    p_user_id: userId,
+    p_reason: reason,
+  });
+  if (error) throw error;
+}
+
+export async function adminUnblockUser(userId: string) {
+  const { error } = await supabase.rpc("admin_unblock_user", { p_user_id: userId });
+  if (error) throw error;
+}
+
+export async function adminMuteUser(userId: string, reason: string, hours: number) {
+  const { error } = await supabase.rpc("admin_mute_user", {
+    p_user_id: userId,
+    p_reason: reason,
+    p_hours: hours,
+  });
+  if (error) throw error;
+}
+
+export async function adminUnmuteUser(userId: string) {
+  const { error } = await supabase.rpc("admin_unmute_user", { p_user_id: userId });
+  if (error) throw error;
+}
+
+export async function adminSetVerified(userId: string, verified: boolean) {
+  const { error } = await supabase.rpc("admin_set_verified", {
+    p_user_id: userId,
+    p_verified: verified,
+  });
+  if (error) throw error;
+}
+
+export async function changePasswordWithCurrent(
+  currentPassword: string,
+  newPassword: string
+) {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user?.email) throw new Error("Нет данных пользователя");
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: userData.user.email,
+    password: currentPassword,
+  });
+  if (signInError) throw new Error("Неверный текущий пароль");
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+export async function signOutAllOtherSessions() {
+  await supabase.auth.signOut({ scope: "others" });
+}
+
+export async function fetchActiveSessions() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return data.session;
 }
 
 export { avatarGradient, cn };

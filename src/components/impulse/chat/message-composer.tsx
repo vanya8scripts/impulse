@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useChatsStore } from "@/stores/chats-store";
 import { sendMessage, uploadAttachment } from "@/lib/impulse";
 import { supabase } from "@/lib/supabase";
+import { encryptText, isEncrypted } from "@/lib/crypto";
 import { EmojiPicker } from "@/components/impulse/chat/emoji-picker";
 import {
   Paperclip,
@@ -107,10 +108,13 @@ export function MessageComposer({ chatId }: { chatId: string }) {
     if (!content) return;
     setBusy(true);
     try {
+      const chat = useChatsStore.getState().chats.find((c) => c.id === chatId);
+      const memberIds = chat?.members.map((m) => m.user_id) || [profile.id];
+      const encrypted = await encryptText(content, chatId, memberIds);
       await sendMessage({
         chatId,
         senderId: profile.id,
-        content,
+        content: encrypted,
         type: "text",
         replyTo: reply?.id || null,
       });
@@ -262,7 +266,9 @@ export function MessageComposer({ chatId }: { chatId: string }) {
             <div className="truncate text-xs text-muted-foreground">
               {reply.deleted_at
                 ? "Сообщение удалено"
-                : reply.content || previewType(reply.type)}
+                : isEncrypted(reply.content)
+                  ? previewType(reply.type)
+                  : reply.content || previewType(reply.type)}
             </div>
           </div>
           <button

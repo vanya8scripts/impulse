@@ -5,7 +5,7 @@ import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar } from "@/components/impulse/avatar";
 import { formatTime, cn } from "@/lib/format";
-import { Search, PenSquare, MessageCircle, Pin, BellOff } from "lucide-react";
+import { Search, PenSquare, MessageCircle, Pin, BellOff, Megaphone, Users, BadgeCheck } from "lucide-react";
 import { searchProfilesByUsername } from "@/lib/impulse";
 import type { ChatWithDetails, Profile } from "@/types/db";
 
@@ -163,13 +163,14 @@ function ChatRow({
   const name =
     chat.type === "direct"
       ? chat.peer?.display_name || "Пользователь"
-      : chat.title || "Группа";
+      : chat.title || (chat.type === "channel" ? "Канал" : "Группа");
 
   const lastMsg = chat.last_message;
   const lastMsgPreview = useMemo(() => {
     if (!lastMsg || lastMsg.deleted_at) return "Нет сообщений";
     const isMine = lastMsg.sender_id === useAuthStore.getState().profile?.id;
     const prefix = isMine ? "Вы: " : "";
+    const isEnc = lastMsg.content?.startsWith("enc:v1:");
     switch (lastMsg.type) {
       case "image":
         return `${prefix}Фото`;
@@ -184,13 +185,15 @@ function ChatRow({
       case "call":
         return `${prefix}Звонок`;
       case "system":
-        return lastMsg.content || "";
+        return isEnc ? "Сообщение" : lastMsg.content || "";
       default:
-        return `${prefix}${lastMsg.content || ""}`;
+        return isEnc ? `${prefix}Сообщение` : `${prefix}${lastMsg.content || ""}`;
     }
   }, [lastMsg]);
 
   const time = lastMsg?.created_at || chat.last_message_at || chat.created_at;
+
+  const ChatIcon = chat.type === "channel" ? Megaphone : chat.type === "group" ? Users : null;
 
   return (
     <button
@@ -200,18 +203,35 @@ function ChatRow({
         active ? "bg-primary/10" : "hover:bg-sidebar-accent"
       )}
     >
-      <Avatar
-        profile={chat.peer}
-        name={name}
-        seed={chat.type === "group" ? chat.id : chat.peer?.id}
-        src={chat.type === "group" ? chat.avatar_url : undefined}
-        size="md"
-        online={chat.type === "direct" ? useChatsStore.getState().presence[chat.peer?.id || ""] : undefined}
-      />
+      {chat.type === "direct" ? (
+        <Avatar
+          profile={chat.peer}
+          name={name}
+          seed={chat.peer?.id}
+          size="md"
+          online={useChatsStore.getState().presence[chat.peer?.id || ""]}
+        />
+      ) : (
+        <div className="relative">
+          <Avatar
+            name={name}
+            seed={chat.id}
+            src={chat.avatar_url}
+            size="md"
+            showVerified={false}
+          />
+          <div className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-background">
+            <ChatIcon className={cn("h-3 w-3", chat.type === "channel" ? "text-primary" : "text-muted-foreground")} />
+          </div>
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="truncate text-sm font-medium">{name}</span>
+            {(chat.is_official || chat.is_verified || (chat.type === "direct" && chat.peer?.is_verified)) && (
+              <BadgeCheck className="h-3.5 w-3.5 shrink-0 fill-primary text-primary-foreground" />
+            )}
             {chat.muted && <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
             {chat.pinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />}
           </div>

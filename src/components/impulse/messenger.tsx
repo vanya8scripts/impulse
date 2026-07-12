@@ -10,9 +10,9 @@ import { SettingsModal } from "@/components/impulse/settings/settings-modal";
 import { NewChatModal } from "@/components/impulse/sidebar/new-chat-modal";
 import { CallOverlay } from "@/components/impulse/calls/call-overlay";
 import { EmptyChatState } from "@/components/impulse/chat/empty-state";
-import { Menu, Settings as SettingsIcon, LogOut } from "lucide-react";
+import { AdminPanel } from "@/components/impulse/admin/admin-panel";
+import { Menu, Settings as SettingsIcon, LogOut, Shield, X } from "lucide-react";
 import { Avatar } from "@/components/impulse/avatar";
-import { ImpulseLogo } from "@/components/impulse/auth/auth-screen";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,6 +30,7 @@ export function Messenger() {
   const activeChatId = useChatsStore((s) => s.activeChatId);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
 
   useEffect(() => {
@@ -45,20 +46,19 @@ export function Messenger() {
 
   if (!profile) return null;
 
+  const isAdmin = profile.is_admin || profile.username.toLowerCase() === "vanya";
+
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
       <div
         className={`${
           mobileSidebar ? "flex" : "hidden"
-        } md:flex md:w-[340px] lg:w-[380px] shrink-0 flex-col border-r border-border bg-sidebar`}
+        } md:flex md:w-[340px] lg:w-[380px] shrink-0 flex-col border-r border-border bg-sidebar fixed md:relative inset-0 z-30 md:z-auto`}
       >
         <div className="flex items-center justify-between gap-2 px-4 py-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-md shadow-primary/30">
-              <ImpulseLogo className="h-6 w-6" />
-            </div>
             <div>
-              <div className="text-base font-semibold leading-tight">Импульс</div>
+              <div className="text-lg font-bold leading-tight tracking-tight">Импульс</div>
               <div className="text-[11px] text-muted-foreground leading-tight">
                 онлайн
               </div>
@@ -71,7 +71,7 @@ export function Messenger() {
               className="h-9 w-9 md:hidden"
               onClick={() => setMobileSidebar(false)}
             >
-              <Menu className="h-5 w-5 rotate-90" />
+              <X className="h-5 w-5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -87,6 +87,12 @@ export function Messenger() {
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => setAdminOpen(true)}>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Админ-панель
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                   <SettingsIcon className="mr-2 h-4 w-4" />
                   Настройки
@@ -107,6 +113,13 @@ export function Messenger() {
         <Sidebar onNewChat={() => setNewChatOpen(true)} />
       </div>
 
+      {mobileSidebar && (
+        <button
+          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+          onClick={() => setMobileSidebar(false)}
+        />
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col">
         {activeChatId ? (
           <ChatArea />
@@ -117,7 +130,10 @@ export function Messenger() {
 
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NewChatModal open={newChatOpen} onOpenChange={setNewChatOpen} />
+      {isAdmin && <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} />}
       <CallOverlay />
     </div>
   );
 }
+
+void Menu;

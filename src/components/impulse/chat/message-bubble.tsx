@@ -25,6 +25,7 @@ import {
 import type { Message, MessageType } from "@/types/db";
 import { cn, formatTime, formatDuration, formatFileSize } from "@/lib/format";
 import { editMessage, deleteMessage } from "@/lib/impulse";
+import { decryptText, encryptText, isEncrypted } from "@/lib/crypto";
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -40,6 +41,7 @@ interface Props {
   showAvatar: boolean;
   isFirstOfGroup: boolean;
   peerName?: string;
+  memberIds?: string[];
 }
 
 export function MessageBubble({
@@ -48,11 +50,30 @@ export function MessageBubble({
   showAvatar,
   isFirstOfGroup,
   peerName,
+  memberIds = [],
 }: Props) {
   const updateMessage = useChatsStore((s) => s.updateMessage);
   const removeMessage = useChatsStore((s) => s.removeMessage);
   const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(message.content || "");
+  const [editText, setEditText] = useState("");
+  const [decrypted, setDecrypted] = useState<string>(message.content || "");
+
+  useEffect(() => {
+    let active = true;
+    if (message.content && isEncrypted(message.content) && memberIds.length) {
+      decryptText(message.content, message.chat_id, memberIds).then((text) => {
+        if (active) {
+          setDecrypted(text);
+        }
+      });
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDecrypted(message.content || "");
+    }
+    return () => {
+      active = false;
+    };
+  }, [message.content, message.chat_id, memberIds]);
 
   const replyToMessage = useChatsStore((s) =>
     message.reply_to
@@ -64,7 +85,7 @@ export function MessageBubble({
     return (
       <div className="mx-auto my-2 max-w-md">
         <div className="rounded-full bg-card/80 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
-          {message.content}
+          {decrypted}
         </div>
       </div>
     );
@@ -75,14 +96,17 @@ export function MessageBubble({
   }
 
   const startEdit = () => {
-    setEditText(message.content || "");
+    setEditText(decrypted);
     setEditing(true);
   };
 
   const saveEdit = async () => {
     if (!editText.trim()) return;
     try {
-      const updated = await editMessage(message.id, editText.trim());
+      const encrypted = memberIds.length
+        ? await encryptText(editText.trim(), message.chat_id, memberIds)
+        : editText.trim();
+      const updated = await editMessage(message.id, encrypted);
       updateMessage(message.chat_id, message.id, updated);
       setEditing(false);
     } catch {
@@ -101,7 +125,7 @@ export function MessageBubble({
   };
 
   const onCopy = () => {
-    if (message.content) navigator.clipboard.writeText(message.content);
+    if (decrypted) navigator.clipboard.writeText(decrypted);
   };
 
   const onReply = () => {
@@ -174,7 +198,7 @@ export function MessageBubble({
                   Сообщение удалено
                 </span>
               ) : (
-                <MessageContent message={message} isMine={isMine} />
+                <MessageContent message={message} isMine={isMine} decrypted={decrypted} />
               )}
 
               {!deleted && editing && (
@@ -225,7 +249,7 @@ export function MessageBubble({
           <ContextMenuItem onClick={onReply}>
             <Reply className="mr-2 h-4 w-4" /> Ответить
           </ContextMenuItem>
-          {message.type === "text" && message.content && (
+          {message.type === "text" && decrypted && (
             <ContextMenuItem onClick={onCopy}>
               <Copy className="mr-2 h-4 w-4" /> Копировать
             </ContextMenuItem>
@@ -280,7 +304,26 @@ function StatusTicks({ status }: { status: string }) {
   return null;
 }
 
-function MessageContent({ message, isMine }: { message: Message; isMine: boolean }) {
+function downloadAttachment(url: string, filename?: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "file";
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function MessageContent({
+  message,
+  isMine,
+  decrypted,
+}: {
+  message: Message;
+  isMine: boolean;
+  decrypted: string;
+}) {
   switch (message.type) {
     case "image":
       return message.attachment_url ? (
@@ -289,9 +332,9 @@ function MessageContent({ message, isMine }: { message: Message; isMine: boolean
             src={message.attachment_url}
             alt={message.attachment_name || "Фото"}
             className="max-h-80 w-full cursor-pointer object-cover transition-transform hover:scale-[1.02]"
-            onClick={() => window.open(message.attachment_url, "_blank")}
+            onClick={() => downloadAttachment(message.attachment_url!, message.attachment_name || "photo.jpg")}
           />
-          {message.content && <div className="px-1 py-1.5">{message.content}</div>}
+          {decrypted && <div className="px-1 py-1.5">{decrypted}</div>}
         </div>
       ) : null;
 
@@ -304,7 +347,7 @@ function MessageContent({ message, isMine }: { message: Message; isMine: boolean
             className="max-h-80 w-full"
             preload="metadata"
           />
-          {message.content && <div className="px-1 py-1.5">{message.content}</div>}
+          {decrypted && <div className="px-1 py-1.5">{decrypted}</div>}
         </div>
       ) : null;
 
@@ -315,18 +358,16 @@ function MessageContent({ message, isMine }: { message: Message; isMine: boolean
       return (
         <div className="-mx-1 -my-1">
           <audio src={message.attachment_url!} controls className="w-full" preload="metadata" />
-          {message.content && <div className="px-1 py-1.5">{message.content}</div>}
+          {decrypted && <div className="px-1 py-1.5">{decrypted}</div>}
         </div>
       );
 
     case "file":
       return (
-        <a
-          href={message.attachment_url || "#"}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => downloadAttachment(message.attachment_url!, message.attachment_name)}
           className={cn(
-            "flex items-center gap-3 rounded-xl p-2 transition-colors",
+            "flex w-full items-center gap-3 rounded-xl p-2 transition-colors",
             isMine ? "hover:bg-white/10" : "hover:bg-foreground/5"
           )}
         >
@@ -338,7 +379,7 @@ function MessageContent({ message, isMine }: { message: Message; isMine: boolean
           >
             <FileText className="h-5 w-5" />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 text-left">
             <div className="truncate text-sm font-medium">
               {message.attachment_name || "Файл"}
             </div>
@@ -347,13 +388,13 @@ function MessageContent({ message, isMine }: { message: Message; isMine: boolean
             </div>
           </div>
           <Download className="h-4 w-4 opacity-70" />
-        </a>
+        </button>
       );
 
     default:
       return (
         <div className="whitespace-pre-wrap break-words">
-          {message.content}
+          {decrypted}
         </div>
       );
   }
