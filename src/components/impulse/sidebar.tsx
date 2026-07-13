@@ -8,6 +8,7 @@ import { formatTime, cn } from "@/lib/format";
 import { Search, PenSquare, MessageCircle, Pin, BellOff, Megaphone, Users, BadgeCheck } from "lucide-react";
 import { searchProfilesByUsername } from "@/lib/impulse";
 import type { ChatWithDetails, Profile } from "@/types/db";
+import { toast } from "sonner";
 
 export function Sidebar({ onNewChat }: { onNewChat: () => void }) {
   const chats = useChatsStore((s) => s.chats);
@@ -54,11 +55,30 @@ export function Sidebar({ onNewChat }: { onNewChat: () => void }) {
     }
   };
 
-  const onSelectUser = (user: Profile) => {
-    onNewChat();
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("impulse:new-chat-user", { detail: user }));
-    }, 0);
+  const onSelectUser = async (user: Profile) => {
+    if (!profile) return;
+    try {
+      const { findOrCreateDirectChat } = await import("@/lib/impulse");
+      const { db } = await import("@/lib/backend");
+      const chatId = await findOrCreateDirectChat(profile.id, user.id);
+      const { data: chatData } = await db.from("chats").select("*").eq("id", chatId).maybeSingle();
+      const { data: members } = await db.from("chat_members").select("*").eq("chat_id", chatId);
+      if (chatData && members) {
+        useChatsStore.getState().upsertChat({
+          ...chatData,
+          members: members as never,
+          last_message: null,
+          unread_count: 0,
+          peer: user,
+        } as never);
+        useChatsStore.getState().setPeer(user.id, user);
+      }
+      useChatsStore.getState().setActiveChat(chatId);
+      setQuery("");
+      setSearchResults([]);
+    } catch {
+      void toast;
+    }
   };
 
   const showUsers = query.trim().length >= 2;

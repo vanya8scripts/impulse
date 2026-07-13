@@ -174,7 +174,6 @@ export async function findOrCreateDirectChat(
   meId: string,
   peerId: string
 ): Promise<string> {
-  // Пытаемся через серверную RPC-функцию (security definer, обходит RLS)
   const { data: rpcId, error: rpcErr } = await db.rpc("create_direct_chat", {
     peer_id: peerId,
   });
@@ -182,7 +181,6 @@ export async function findOrCreateDirectChat(
     return rpcId as string;
   }
 
-  // Fallback: клиентская логика
   const { data: memberships, error: mErr } = await db
     .from("chat_members")
     .select("chat_id")

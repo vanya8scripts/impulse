@@ -65,6 +65,8 @@ export interface Profile {
   scam_set_by: string | null;
   scam_set_at: string | null;
   reports_count: number;
+  status_emoji: string | null;
+  status_text: string | null;
 }
 
 export interface Chat {

@@ -65,6 +65,8 @@ export function SettingsModal({
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [statusEmoji, setStatusEmoji] = useState("😊");
+  const [statusText, setStatusText] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -83,6 +85,8 @@ export function SettingsModal({
       setDisplayName(profile.display_name);
       setUsername(profile.username);
       setBio(profile.bio || "");
+      setStatusEmoji(profile.status_emoji || "😊");
+      setStatusText(profile.status_text || "");
       setAvatarPreview(profile.avatar_url);
       setAvatarFile(null);
       setWhoCanMessage(profile.who_can_message || "everyone");
@@ -126,6 +130,8 @@ export function SettingsModal({
         display_name: displayName.trim(),
         username: username.toLowerCase(),
         bio: bio.trim(),
+        status_emoji: statusEmoji,
+        status_text: statusText.trim() || null,
         avatar_url: avatarUrl,
         theme,
         color_mode: mode,
@@ -273,6 +279,37 @@ export function SettingsModal({
                       className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                     />
                     <div className="text-right text-xs text-muted-foreground">{bio.length}/140</div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Статус</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={statusEmoji}
+                        onChange={(e) => setStatusEmoji(e.target.value)}
+                        className="h-11 w-16 rounded-xl border border-input bg-background px-2 text-lg outline-none focus:border-primary"
+                      >
+                        <option value="😊">😊</option>
+                        <option value="🔥">🔥</option>
+                        <option value="⭐">⭐</option>
+                        <option value="💤">💤</option>
+                        <option value="🎧">🎧</option>
+                        <option value="🎮">🎮</option>
+                        <option value="📚">📚</option>
+                        <option value="✈️">✈️</option>
+                        <option value="☕">☕</option>
+                        <option value="💔">💔</option>
+                        <option value="🤔">🤔</option>
+                        <option value="👀">👀</option>
+                      </select>
+                      <input
+                        value={statusText}
+                        onChange={(e) => setStatusText(e.target.value)}
+                        maxLength={40}
+                        placeholder="Чем занимаешься?"
+                        className="h-11 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
                   </div>
 
                   <button

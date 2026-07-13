@@ -129,7 +129,6 @@ export function NewChatModal({
 
       if (!id) throw new Error("Не удалось получить ID чата");
 
-      // даём БД время на коммит
       await new Promise((r) => setTimeout(r, 300));
 
       const { data: chatData, error: chatErr } = await db
@@ -150,7 +149,6 @@ export function NewChatModal({
           unread_count: 0,
         } as never);
       } else {
-        // обновим список чатов с сервера
         const { fetchChatsForUser } = await import("@/lib/impulse");
         const chats = await fetchChatsForUser(profile.id);
         useChatsStore.getState().setChats(chats);

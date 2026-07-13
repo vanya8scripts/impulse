@@ -28,7 +28,6 @@ export function MessageList({ chatId }: { chatId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastLenRef = useRef(0);
 
-  // Стабильный массив memberIds — пересчитывается только при смене chat
   const memberIds = useMemo(() => {
     if (!chat?.members) return EMPTY_MEMBERS;
     return chat.members.map((m) => m.user_id);

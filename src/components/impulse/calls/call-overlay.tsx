@@ -100,7 +100,7 @@ export function CallOverlay() {
         },
         onStateChange: (state) => {
           if (state === "disconnected" || state === "failed") {
-            // мягко — ждём переподключения
+            
           }
         },
         onError: (err) => toast.error(err),
@@ -163,6 +163,46 @@ export function CallOverlay() {
     }
   };
 
+  const broadcastCallEnd = (cid: string | null) => {
+    if (!profile || !cid) return;
+    const ch = db.channel(`impulse:${profile.id}`);
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        ch.send({ type: "broadcast", event: "call-end", payload: { callId: cid } });
+        setTimeout(() => db.removeChannel(ch), 500);
+      }
+    });
+    if (peerId) {
+      const peerCh = db.channel(`impulse:${peerId}`);
+      peerCh.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          peerCh.send({ type: "broadcast", event: "call-end", payload: { callId: cid } });
+          setTimeout(() => db.removeChannel(peerCh), 500);
+        }
+      });
+    }
+  };
+
+  const broadcastCallDecline = (cid: string | null) => {
+    if (!profile || !cid) return;
+    const ch = db.channel(`impulse:${profile.id}`);
+    ch.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        ch.send({ type: "broadcast", event: "call-decline", payload: { callId: cid } });
+        setTimeout(() => db.removeChannel(ch), 500);
+      }
+    });
+    if (peerId) {
+      const peerCh = db.channel(`impulse:${peerId}`);
+      peerCh.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          peerCh.send({ type: "broadcast", event: "call-decline", payload: { callId: cid } });
+          setTimeout(() => db.removeChannel(peerCh), 500);
+        }
+      });
+    }
+  };
+
   const endCall = async (status: "ended" | "missed" = "ended") => {
     if (callEndedRef.current) {
       engineRef.current?.cleanup();
@@ -178,11 +218,11 @@ export function CallOverlay() {
     engineRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    broadcastCallEnd(cid);
     if (cid) {
       try {
         await updateCallStatus(cid, status);
       } catch {
-        /* noop */
       }
       if (chatId && profile) {
         try {
@@ -196,7 +236,6 @@ export function CallOverlay() {
             duration: status === "missed" ? null : secs || null,
           });
         } catch {
-          /* noop */
         }
       }
     }
@@ -211,11 +250,11 @@ export function CallOverlay() {
     const cid = callId;
     engineRef.current?.decline();
     engineRef.current = null;
+    broadcastCallDecline(cid);
     if (cid) {
       try {
         await updateCallStatus(cid, "declined");
       } catch {
-        /* noop */
       }
       if (chatId && profile) {
         try {
@@ -227,7 +266,6 @@ export function CallOverlay() {
             attachmentMime: type,
           });
         } catch {
-          /* noop */
         }
       }
     }

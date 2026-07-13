@@ -5,11 +5,12 @@ import { db } from "@/lib/backend";
 import { useChatsStore } from "@/stores/chats-store";
 import { useCallStore } from "@/stores/call-store";
 import { useAuthStore } from "@/stores/auth-store";
-import { fetchChatsForUser, fetchMessages, fetchProfilesByIds } from "@/lib/impulse";
+import { fetchChatsForUser, fetchMessages, fetchProfilesByIds, markChatRead } from "@/lib/impulse";
 import type { Message, Profile } from "@/types/db";
 
 export function useRealtime() {
   const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const setChats = useChatsStore((s) => s.setChats);
   const upsertChat = useChatsStore((s) => s.upsertChat);
   const setMessages = useChatsStore((s) => s.setMessages);
@@ -21,6 +22,11 @@ export function useRealtime() {
   const setPeer = useChatsStore((s) => s.setPeer);
   const openIncoming = useCallStore((s) => s.openIncoming);
   const chatsRef = useRef<Set<string>>(new Set());
+  const activeChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeChatIdRef.current = useChatsStore.getState().activeChatId;
+  });
 
   useEffect(() => {
     if (!profile) return;
@@ -57,11 +63,7 @@ export function useRealtime() {
 
     channel.on(
       "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-      },
+      { event: "INSERT", schema: "public", table: "messages" },
       async (payload) => {
         const msg = payload.new as Message;
         if (!chatsRef.current.has(msg.chat_id)) {
@@ -79,17 +81,27 @@ export function useRealtime() {
             .eq("id", msg.sender_id)
             .maybeSingle();
           if (data) setPeer(msg.sender_id, data as Profile);
+
+          const activeId = useChatsStore.getState().activeChatId;
+          if (activeId === msg.chat_id) {
+            markChatRead(msg.chat_id, profile!.id).catch(() => {});
+          } else {
+            await db
+              .from("messages")
+              .update({ status: "delivered" })
+              .eq("id", msg.id)
+              .neq("sender_id", profile!.id);
+          }
         }
+        const refreshed = await fetchChatsForUser(profile!.id);
+        if (cancelled) return;
+        setChats(refreshed);
       }
     );
 
     channel.on(
       "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "messages",
-      },
+      { event: "UPDATE", schema: "public", table: "messages" },
       (payload) => {
         const msg = payload.new as Message;
         updateMessage(msg.chat_id, msg.id, msg);
@@ -98,11 +110,7 @@ export function useRealtime() {
 
     channel.on(
       "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "messages",
-      },
+      { event: "DELETE", schema: "public", table: "messages" },
       (payload) => {
         const old = payload.old as { id: string; chat_id: string };
         removeMessage(old.chat_id, old.id);
@@ -130,6 +138,19 @@ export function useRealtime() {
       }
     );
 
+    channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "profiles" },
+      (payload) => {
+        const updated = payload.new as Profile;
+        if (!updated) return;
+        setPeer(updated.id, updated);
+        if (updated.id === profile!.id) {
+          setProfile(updated);
+        }
+      }
+    );
+
     channel.on("broadcast", { event: "typing" }, (payload) => {
       const data = payload.payload as { chatId: string; userId: string; typing: boolean };
       if (data.userId === profile!.id) return;
@@ -147,8 +168,26 @@ export function useRealtime() {
         type: "audio" | "video";
       };
       if (data.callerId === profile!.id) return;
-      if (useCallStore.getState().view !== "ended") return;
+      const callState = useCallStore.getState();
+      if (callState.callId === data.callId) return;
+      if (callState.view !== "ended" && callState.view !== "incoming") return;
       openIncoming(data.chatId, data.callerId, data.type, data.callId);
+    });
+
+    channel.on("broadcast", { event: "call-end" }, (payload) => {
+      const data = payload.payload as { callId: string };
+      const callState = useCallStore.getState();
+      if (callState.callId === data.callId || !callState.callId) {
+        callState.close();
+      }
+    });
+
+    channel.on("broadcast", { event: "call-decline" }, (payload) => {
+      const data = payload.payload as { callId: string };
+      const callState = useCallStore.getState();
+      if (callState.callId === data.callId || !callState.callId) {
+        callState.close();
+      }
     });
 
     channel.on("presence", { event: "sync" }, () => {

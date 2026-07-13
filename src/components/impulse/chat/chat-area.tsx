@@ -86,9 +86,11 @@ export function ChatArea() {
     ? peer
       ? isTyping
         ? "печатает…"
-        : peerOnline
-          ? "в сети"
-          : formatLastSeen(peer.last_seen_at)
+        : peer.status_text
+          ? `${peer.status_emoji || ""} ${peer.status_text}`
+          : peerOnline
+            ? "в сети"
+            : formatLastSeen(peer.last_seen_at)
       : "Пользователь"
     : isChannel
       ? `${chat.subscriber_count || chat.members.length} подписчиков`
