@@ -16,12 +16,23 @@ import {
   Trash2,
   Image as ImageIcon,
   Check,
+  Lock,
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/format";
 import { toast } from "sonner";
 import type { Message, MessageType } from "@/types/db";
 
-export function MessageComposer({ chatId }: { chatId: string }) {
+export function MessageComposer({
+  chatId,
+  canWrite = true,
+  isChannel = false,
+  isOfficial = false,
+}: {
+  chatId: string;
+  canWrite?: boolean;
+  isChannel?: boolean;
+  isOfficial?: boolean;
+}) {
   const profile = useAuthStore((s) => s.profile);
   const [text, setText] = useState("");
   const [reply, setReply] = useState<Message | null>(null);
@@ -254,6 +265,19 @@ export function MessageComposer({ chatId }: { chatId: string }) {
       setBusy(false);
     }
   };
+
+  if (!canWrite) {
+    return (
+      <div className="glass border-t border-border px-4 py-4">
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-muted/50 px-4 py-2.5 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4" />
+          {isOfficial
+            ? "Только администратор может публиковать в официальном канале"
+            : "Писать в этот чат запрещено"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass border-t border-border px-2 py-2.5 sm:px-4">

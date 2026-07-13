@@ -9,6 +9,7 @@ import { TypingIndicator } from "@/components/impulse/chat/typing-indicator";
 import type { Message, Profile } from "@/types/db";
 
 const EMPTY_MESSAGES: Message[] = [];
+const EMPTY_MEMBERS: string[] = [];
 
 interface Group {
   date: string;
@@ -18,24 +19,20 @@ interface Group {
 export function MessageList({ chatId }: { chatId: string }) {
   const messages = useChatsStore((s) => s.messages[chatId] || EMPTY_MESSAGES);
   const typing = useChatsStore((s) => s.typing[chatId]);
-  const memberIds = useChatsStore((s) => {
-    const chat = s.chats.find((c) => c.id === chatId);
-    return chat?.members.map((m) => m.user_id) || [];
-  });
-  const peerId = useChatsStore((s) => {
-    const chat = s.chats.find((c) => c.id === chatId);
-    return chat?.peer?.id || null;
-  });
+  const chat = useChatsStore((s) => s.chats.find((c) => c.id === chatId) || null);
+  const peerId = chat?.peer?.id || null;
   const peerFromPeers = useChatsStore((s) =>
     peerId ? s.peers[peerId] : undefined
   );
-  const peerFromChat = useChatsStore((s) => {
-    const chat = s.chats.find((c) => c.id === chatId);
-    return chat?.peer || null;
-  });
-  const peer: Profile | null = peerFromPeers || peerFromChat;
+  const peer: Profile | null = peerFromPeers || chat?.peer || null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastLenRef = useRef(0);
+
+  // Стабильный массив memberIds — пересчитывается только при смене chat
+  const memberIds = useMemo(() => {
+    if (!chat?.members) return EMPTY_MEMBERS;
+    return chat.members.map((m) => m.user_id);
+  }, [chat]);
 
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Message[]>();

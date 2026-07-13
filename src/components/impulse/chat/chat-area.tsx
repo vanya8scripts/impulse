@@ -276,7 +276,17 @@ export function ChatArea() {
         </header>
 
         <MessageList chatId={chat.id} />
-        <MessageComposer chatId={chat.id} />
+        <MessageComposer
+          chatId={chat.id}
+          canWrite={
+            !isChannel
+            || !chat.is_official
+            || profile.is_admin
+            || profile.username.toLowerCase() === "vanya"
+          }
+          isChannel={isChannel}
+          isOfficial={chat.is_official}
+        />
       </div>
 
       {infoOpen && (

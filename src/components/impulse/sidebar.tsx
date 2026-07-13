@@ -211,7 +211,7 @@ function ChatRow({
           size="md"
           online={useChatsStore.getState().presence[chat.peer?.id || ""]}
         />
-      ) : (
+      ) : chat.avatar_url ? (
         <div className="relative">
           <Avatar
             name={name}
@@ -223,6 +223,15 @@ function ChatRow({
           <div className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-background">
             <ChatIcon className={cn("h-3 w-3", chat.type === "channel" ? "text-primary" : "text-muted-foreground")} />
           </div>
+        </div>
+      ) : (
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+          <ChatIcon className="h-5 w-5" />
+          {(chat.is_official || chat.is_verified) && (
+            <div className="absolute -bottom-0.5 -right-0.5">
+              <BadgeCheck className="h-4 w-4 fill-primary text-primary-foreground" />
+            </div>
+          )}
         </div>
       )}
       <div className="min-w-0 flex-1">
