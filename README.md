@@ -22,24 +22,8 @@
 
 Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Supabase (Auth, Postgres, Realtime, Storage), Zustand, WebRTC, Web Crypto API.
 
-## Локальный запуск
 
-1. Создай проект на supabase.com
-2. В Supabase открой Authentication, Providers, Email. Выключи Confirm email
-3. Открой SQL Editor и выполни по очереди:
-   - sql/schema.sql
-   - sql/fix-recursion.sql
-   - sql/fix-create-chat.sql
-   - sql/migration-v2.sql
-4. Скопируй Project URL и anon key из Project Settings, API
-5. Создай файл .env.local:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://твой-проект.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=твой-anon-key
-```
-
-6. Установи зависимости и запусти:
+Установи зависимости и запусти локально:
 
 ```bash
 npm install
@@ -49,13 +33,9 @@ npm run dev
 
 ## Структура
 
-- sql — схема базы данных и миграции
 - src/app — точка входа Next.js
 - src/components/impulse — компоненты мессенджера
-- src/lib — клиент Supabase, сервисы, WebRTC движок, шифрование
+- src/lib — клиент, сервисы, движок,
 - src/stores — состояние Zustand
 - src/types — типы
 
-## Лицензия
-
-Свободно для личного использования.
