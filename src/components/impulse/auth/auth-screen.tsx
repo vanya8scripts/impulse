@@ -6,6 +6,7 @@ import { isValidUsername, avatarGradient, initialsFrom } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Camera,
+  Check,
   Eye,
   EyeOff,
   Loader2,
@@ -29,6 +30,8 @@ export function AuthScreen() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onPickAvatar = useCallback(() => fileRef.current?.click(), []);
@@ -72,6 +75,7 @@ export function AuthScreen() {
     if (!displayName.trim()) return toast.error("Введите имя");
     if (!isValidUsername(username)) return toast.error("Юзернейм: 3–20 символов, латиница, цифры, _");
     if (password.length < 6) return toast.error("Пароль минимум 6 символов");
+    if (!agreed) return toast.error("Необходимо согласиться с правилами и политикой");
     setBusy(true);
     try {
       const email = `${username.toLowerCase()}@impulse.local`;
@@ -302,6 +306,32 @@ export function AuthScreen() {
                 </div>
               </div>
 
+              {tab === "register" && (
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <button
+                      type="button"
+                      onClick={() => setAgreed((a) => !a)}
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                        agreed ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background"
+                      }`}
+                    >
+                      {agreed && <Check className="h-3.5 w-3.5" />}
+                    </button>
+                    <span className="text-xs text-muted-foreground leading-relaxed">
+                      Я прочитал(а) и согласен(на) с{" "}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setShowTerms(true); }}
+                        className="text-primary font-medium hover:underline"
+                      >
+                        правилами сообщества и политикой конфиденциальности
+                      </button>
+                    </span>
+                  </label>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={busy}
@@ -331,6 +361,93 @@ export function AuthScreen() {
           </div>
         </div>
       </div>
+
+      {showTerms && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setShowTerms(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl scrollbar-thin"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Правила и политика конфиденциальности</h2>
+              <button
+                onClick={() => setShowTerms(false)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">1. Общие положения</h3>
+                <p className="leading-relaxed">
+                  Импульс — мессенджер для общения. Регистрируясь, вы соглашаетесь использовать сервис
+                  по назначению, не нарушать законы и уважать других пользователей.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">2. Что запрещено</h3>
+                <ul className="space-y-1.5 leading-relaxed list-disc pl-4">
+                  <li>Спам и массовая рассылка нежелательных сообщений</li>
+                  <li>Мошенничество, обман, вымогательство денег или данных</li>
+                  <li>Оскорбления, угрозы, преследование других пользователей</li>
+                  <li>Размещение незаконного контента: насилие, порнография, экстремизм</li>
+                  <li>Пропаганда наркотиков, оружия, терроризма</li>
+                  <li>Создание фейковых аккаунтов от чужого имени</li>
+                  <li>Попытки взлома, DDoS, любые атаки на инфраструктуру</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">3. Модерация</h3>
+                <p className="leading-relaxed">
+                  Администрация вправе заблокировать или замьютить аккаунт за нарушение правил.
+                  Пользователи могут пожаловаться на нарушителей — каждая жалоба рассматривается.
+                  За мошенничество выдаётся метка СКАМ с блокировкой отправки сообщений.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">4. Конфиденциальность</h3>
+                <p className="leading-relaxed">
+                  Текстовые сообщения шифруются (AES-GCM) на стороне клиента перед отправкой.
+                  Ваш пароль хранится в виде хеша. Аватарки и файлы загружаются в защищённое хранилище.
+                  Мы не передаём ваши данные третьим лицам.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">5. Ответственность</h3>
+                <p className="leading-relaxed">
+                  Сервис предоставляется «как есть». Администрация не несёт ответственности за
+                  содержание сообщений пользователей. Вы сами отвечаете за свои действия в мессенджере.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 font-medium text-foreground">6. Изменения правил</h3>
+                <p className="leading-relaxed">
+                  Правила могут обновляться. Продолжая использовать сервис, вы соглашаетесь с актуальной
+                  версией. Дата последнего обновления: {new Date().toLocaleDateString("ru-RU")}.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => { setAgreed(true); setShowTerms(false); }}
+              className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
+            >
+              <Check className="h-4 w-4" />
+              Прочитал, согласен
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

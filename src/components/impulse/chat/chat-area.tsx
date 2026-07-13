@@ -94,15 +94,18 @@ export function ChatArea() {
       ? `${chat.subscriber_count || chat.members.length} подписчиков`
       : `${chat.members.length} участников`;
 
-  const headerName = isDirect
-    ? peer?.display_name || "Пользователь"
-    : chat.title || (isChannel ? "Канал" : "Группа");
-
   const ChatIcon = isChannel ? Megaphone : isGroup ? Users : null;
   const showVerified = isDirect
     ? peer?.is_verified || peer?.is_admin
     : chat.is_official || chat.is_verified;
-  const canCall = isDirect;
+  const peerRestricted = isDirect && (peer?.is_blocked || peer?.is_scam);
+  const canCall = isDirect && !peerRestricted;
+  const canWrite = !isChannel || !chat.is_official || profile.is_admin || profile.username.toLowerCase() === "vanya";
+  const headerName = isDirect
+    ? peer?.is_blocked || peer?.is_scam
+      ? (peer?.is_scam ? "СКАЗ · заблокирован" : "Аккаунт заблокирован")
+      : peer?.display_name || "Пользователь"
+    : chat.title || (isChannel ? "Канал" : "Группа");
 
   const startCall = async (type: CallType) => {
     if (!peer || !profile) return;
@@ -278,14 +281,10 @@ export function ChatArea() {
         <MessageList chatId={chat.id} />
         <MessageComposer
           chatId={chat.id}
-          canWrite={
-            !isChannel
-            || !chat.is_official
-            || profile.is_admin
-            || profile.username.toLowerCase() === "vanya"
-          }
+          canWrite={canWrite && !peerRestricted && !profile.is_blocked && !profile.is_scam}
           isChannel={isChannel}
           isOfficial={chat.is_official}
+          peerRestricted={peerRestricted}
         />
       </div>
 

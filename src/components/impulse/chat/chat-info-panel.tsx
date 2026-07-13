@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar } from "@/components/impulse/avatar";
+import { ReportModal } from "@/components/impulse/report-modal";
 import { db } from "@/lib/backend";
 import { formatLastSeen } from "@/lib/format";
-import { X, Bell, BellOff, Pin, PinOff, Trash2, AtSign, Calendar, Info } from "lucide-react";
+import { X, Bell, BellOff, Pin, PinOff, Trash2, AtSign, Calendar, Info, Flag } from "lucide-react";
 import { toggleChatMuted, toggleChatPinned } from "@/lib/impulse";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ export function ChatInfoPanel({
   const removeChat = useChatsStore((s) => s.removeChat);
   const setActiveChat = useChatsStore((s) => s.setActiveChat);
   const profile = useAuthStore((s) => s.profile);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const peer = useMemo(() => {
     if (chat?.peer) return peers[chat.peer.id] || chat.peer;
@@ -160,7 +162,18 @@ export function ChatInfoPanel({
             <Trash2 className="h-4 w-4" />
             Удалить чат
           </button>
+          {isDirect && peer && !peer.is_blocked && !peer.is_scam && (
+            <button
+              onClick={() => setReportOpen(true)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Flag className="h-4 w-4" />
+              Пожаловаться
+            </button>
+          )}
         </div>
+
+        <ReportModal user={peer || null} open={reportOpen} onOpenChange={setReportOpen} />
       </div>
     </aside>
   );

@@ -4,6 +4,7 @@ import { useAuthBootstrap } from "@/hooks/impulse/use-auth-bootstrap";
 import { AuthScreen } from "@/components/impulse/auth/auth-screen";
 import { Messenger } from "@/components/impulse/messenger";
 import { SetupScreen } from "@/components/impulse/setup-screen";
+import { BlockedScreen } from "@/components/impulse/blocked-screen";
 import { isBackendConfigured } from "@/lib/backend";
 import { Loader2 } from "lucide-react";
 
@@ -26,5 +27,6 @@ export default function Page() {
   }
 
   if (!profile) return <AuthScreen />;
+  if (profile.is_blocked) return <BlockedScreen profile={profile} />;
   return <Messenger />;
 }

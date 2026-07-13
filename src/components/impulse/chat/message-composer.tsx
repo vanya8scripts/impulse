@@ -27,11 +27,13 @@ export function MessageComposer({
   canWrite = true,
   isChannel = false,
   isOfficial = false,
+  peerRestricted = false,
 }: {
   chatId: string;
   canWrite?: boolean;
   isChannel?: boolean;
   isOfficial?: boolean;
+  peerRestricted?: boolean;
 }) {
   const profile = useAuthStore((s) => s.profile);
   const [text, setText] = useState("");
@@ -271,9 +273,11 @@ export function MessageComposer({
       <div className="glass border-t border-border px-4 py-4">
         <div className="flex items-center justify-center gap-2 rounded-xl bg-muted/50 px-4 py-2.5 text-sm text-muted-foreground">
           <Lock className="h-4 w-4" />
-          {isOfficial
-            ? "Только администратор может публиковать в официальном канале"
-            : "Писать в этот чат запрещено"}
+          {peerRestricted
+            ? "Аккаунт пользователя ограничен — отправка недоступна"
+            : isOfficial
+              ? "Только администратор может публиковать в официальном канале"
+              : "Писать в этот чат запрещено"}
         </div>
       </div>
     );

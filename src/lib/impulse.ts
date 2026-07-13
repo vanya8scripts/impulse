@@ -9,6 +9,7 @@ import type {
   Message,
   MessageType,
   Profile,
+  Report,
 } from "@/types/db";
 import { avatarGradient, cn } from "@/lib/format";
 
@@ -591,6 +592,51 @@ export async function fetchAllChats() {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data || []) as Chat[];
+}
+
+export async function submitReport(reportedId: string, reason: string, comment?: string) {
+  const { data, error } = await db.rpc("submit_report", {
+    p_reported_id: reportedId,
+    p_reason: reason,
+    p_comment: comment || null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function fetchReports(status?: string) {
+  let query = db.from("reports").select("*");
+  if (status) query = query.eq("status", status);
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  const reports = (data || []) as Report[];
+  if (reports.length === 0) return reports;
+  const userIds = Array.from(new Set(reports.flatMap(r => [r.reporter_id, r.reported_id])));
+  const { data: users } = await db.from("profiles").select("*").in("id", userIds);
+  const userMap = new Map<string, Profile>(((users || []) as Profile[]).map(u => [u.id, u]));
+  return reports.map(r => ({
+    ...r,
+    reporter: userMap.get(r.reporter_id),
+    reported: userMap.get(r.reported_id),
+  }));
+}
+
+export async function resolveReport(reportId: string, status: string, note?: string) {
+  const { error } = await db.rpc("resolve_report", {
+    p_report_id: reportId,
+    p_status: status,
+    p_note: note || null,
+  });
+  if (error) throw error;
+}
+
+export async function adminSetScam(userId: string, scam: boolean, reason?: string) {
+  const { error } = await db.rpc("admin_set_scam", {
+    p_user_id: userId,
+    p_scam: scam,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
 }
 
 export async function changePasswordWithCurrent(

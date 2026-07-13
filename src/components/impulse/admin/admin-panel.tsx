@@ -6,6 +6,8 @@ import { Avatar } from "@/components/impulse/avatar";
 import {
   fetchAllProfiles,
   fetchAllChats,
+  fetchReports,
+  resolveReport,
   adminBlockUser,
   adminUnblockUser,
   adminMuteUser,
@@ -18,8 +20,9 @@ import {
   adminPromoteAdmin,
   adminDemoteAdmin,
   adminDeleteUserMessages,
+  adminSetScam,
 } from "@/lib/impulse";
-import type { Chat, Profile } from "@/types/db";
+import type { Chat, Profile, Report, ReportReason } from "@/types/db";
 import {
   Search,
   Shield,
@@ -28,7 +31,6 @@ import {
   VolumeX,
   Volume2,
   Loader2,
-  X,
   AlertTriangle,
   Megaphone,
   Users,
@@ -36,11 +38,23 @@ import {
   Radio,
   Crown,
   MessageSquare,
+  Flag,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatLastSeen, cn } from "@/lib/format";
 
-type Tab = "users" | "chats" | "broadcast";
+type Tab = "users" | "chats" | "reports" | "broadcast";
+
+const REASON_LABELS: Record<ReportReason, string> = {
+  spam: "Спам",
+  scam: "Мошенничество",
+  harassment: "Оскорбления",
+  fake: "Фейк",
+  violence: "Насилие",
+  pornography: "Запрещённый контент",
+  other: "Другое",
+};
 
 export function AdminPanel({
   open,
@@ -52,10 +66,11 @@ export function AdminPanel({
   const [tab, setTab] = useState<Tab>("users");
   const [users, setUsers] = useState<Profile[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [actionUser, setActionUser] = useState<Profile | null>(null);
-  const [actionType, setActionType] = useState<"block" | "mute" | null>(null);
+  const [actionType, setActionType] = useState<"block" | "mute" | "scam" | null>(null);
   const [reason, setReason] = useState("");
   const [hours, setHours] = useState("24");
   const [busy, setBusy] = useState(false);
@@ -71,9 +86,10 @@ export function AdminPanel({
   async function loadAll() {
     setLoading(true);
     try {
-      const [u, c] = await Promise.all([fetchAllProfiles(), fetchAllChats()]);
+      const [u, c, r] = await Promise.all([fetchAllProfiles(), fetchAllChats(), fetchReports()]);
       setUsers(u);
       setChats(c);
+      setReports(r);
     } catch {
       toast.error("Не удалось загрузить данные");
     } finally {
@@ -89,10 +105,21 @@ export function AdminPanel({
   const filteredChats = chats.filter(
     (c) => c.type !== "direct" && (c.title || "").toLowerCase().includes(query.toLowerCase())
   );
+  const pendingReports = reports.filter((r) => r.status === "pending");
+  const filteredReports = reports.filter(
+    (r) =>
+      !query ||
+      r.reported?.username.toLowerCase().includes(query.toLowerCase()) ||
+      r.reporter?.username.toLowerCase().includes(query.toLowerCase())
+  );
 
   const doAction = async () => {
     if (!actionUser || !actionType) return;
-    if (!reason.trim()) {
+    if ((actionType === "block" || actionType === "scam") && !reason.trim()) {
+      toast.error("Укажите причину");
+      return;
+    }
+    if (actionType === "mute" && !reason.trim()) {
       toast.error("Укажите причину");
       return;
     }
@@ -101,6 +128,9 @@ export function AdminPanel({
       if (actionType === "block") {
         await adminBlockUser(actionUser.id, reason.trim());
         toast.success(`${actionUser.username} заблокирован`);
+      } else if (actionType === "scam") {
+        await adminSetScam(actionUser.id, true, reason.trim());
+        toast.success(`${actionUser.username} помечен как СКАМ`);
       } else {
         await adminMuteUser(actionUser.id, reason.trim(), parseInt(hours) || 0);
         toast.success(`${actionUser.username} замьючен`);
@@ -144,6 +174,21 @@ export function AdminPanel({
     } else {
       setActionUser(user);
       setActionType("mute");
+    }
+  };
+
+  const toggleScam = async (user: Profile) => {
+    if (user.is_scam) {
+      try {
+        await adminSetScam(user.id, false);
+        toast.success("Метка СКАМ снята");
+        await loadAll();
+      } catch {
+        toast.error("Ошибка");
+      }
+    } else {
+      setActionUser(user);
+      setActionType("scam");
     }
   };
 
@@ -230,24 +275,26 @@ export function AdminPanel({
     }
   };
 
+  const handleResolve = async (reportId: string, status: "resolved" | "dismissed") => {
+    try {
+      await resolveReport(reportId, status);
+      toast.success(status === "resolved" ? "Жалоба удовлетворена" : "Жалоба отклонена");
+      await loadAll();
+    } catch {
+      toast.error("Ошибка");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl gap-0 p-0 max-h-[90vh]">
         <DialogTitle className="sr-only">Админ-панель</DialogTitle>
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Админ-панель</h2>
-          </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+          <Shield className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Админ-панель</h2>
         </div>
 
-        <div className="grid grid-cols-3 gap-1 border-b border-border bg-muted p-1 m-3 rounded-xl">
+        <div className="grid grid-cols-4 gap-1 border-b border-border bg-muted p-1 m-3 rounded-xl">
           <button
             onClick={() => setTab("users")}
             className={cn(
@@ -256,7 +303,7 @@ export function AdminPanel({
             )}
           >
             <Users className="h-3.5 w-3.5" />
-            Пользователи
+            Люди
           </button>
           <button
             onClick={() => setTab("chats")}
@@ -269,6 +316,21 @@ export function AdminPanel({
             Чаты
           </button>
           <button
+            onClick={() => setTab("reports")}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all",
+              tab === "reports" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Жалобы
+            {pendingReports.length > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                {pendingReports.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setTab("broadcast")}
             className={cn(
               "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-all",
@@ -276,18 +338,18 @@ export function AdminPanel({
             )}
           >
             <Radio className="h-3.5 w-3.5" />
-            Рассылка
+            Пост
           </button>
         </div>
 
         <div className="px-3 pb-3">
-          {(tab === "users" || tab === "chats") && (
+          {tab !== "broadcast" && (
             <div className="relative mb-3">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={tab === "users" ? "Поиск пользователей" : "Поиск чатов"}
+                placeholder="Поиск…"
                 className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
             </div>
@@ -309,18 +371,20 @@ export function AdminPanel({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-sm font-medium">{user.display_name}</span>
                       {user.is_admin && (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                          ADMIN
-                        </span>
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">ADMIN</span>
                       )}
                       {user.is_blocked && (
-                        <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-                          BLOCKED
-                        </span>
+                        <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">BLOCKED</span>
                       )}
                       {user.is_muted && (
-                        <span className="rounded bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">
-                          MUTED
+                        <span className="rounded bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">MUTED</span>
+                      )}
+                      {user.is_scam && (
+                        <span className="rounded bg-orange-600/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">СКАМ</span>
+                      )}
+                      {user.reports_count > 0 && (
+                        <span className="rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700">
+                          {user.reports_count} жалоб
                         </span>
                       )}
                     </div>
@@ -328,27 +392,24 @@ export function AdminPanel({
                       @{user.username} · {formatLastSeen(user.last_seen_at)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     <button
                       onClick={() => toggleVerified(user)}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                        user.is_verified
-                          ? "text-primary hover:bg-primary/10"
-                          : "text-muted-foreground hover:bg-accent hover:text-primary"
-                      )}
+                      className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", user.is_verified ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-accent hover:text-primary")}
                       title="Галочка"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                     <button
+                      onClick={() => toggleScam(user)}
+                      className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", user.is_scam ? "text-orange-700 hover:bg-orange-600/10" : "text-muted-foreground hover:bg-accent hover:text-orange-700")}
+                      title="СКАМ"
+                    >
+                      <ShieldAlert className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => toggleAdmin(user)}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                        user.is_admin
-                          ? "text-primary hover:bg-primary/10"
-                          : "text-muted-foreground hover:bg-accent hover:text-primary"
-                      )}
+                      className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", user.is_admin ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-accent hover:text-primary")}
                       title="Админ"
                     >
                       <Crown className="h-4 w-4" />
@@ -362,24 +423,14 @@ export function AdminPanel({
                     </button>
                     <button
                       onClick={() => toggleMute(user)}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                        user.is_muted
-                          ? "text-orange-600 hover:bg-orange-500/10"
-                          : "text-muted-foreground hover:bg-accent hover:text-orange-600"
-                      )}
+                      className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", user.is_muted ? "text-orange-600 hover:bg-orange-500/10" : "text-muted-foreground hover:bg-accent hover:text-orange-600")}
                       title="Мьют"
                     >
                       {user.is_muted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                     </button>
                     <button
                       onClick={() => toggleBlock(user)}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                        user.is_blocked
-                          ? "text-destructive hover:bg-destructive/10"
-                          : "text-muted-foreground hover:bg-accent hover:text-destructive"
-                      )}
+                      className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", user.is_blocked ? "text-destructive hover:bg-destructive/10" : "text-muted-foreground hover:bg-accent hover:text-destructive")}
                       title="Блок"
                     >
                       <Ban className="h-4 w-4" />
@@ -404,13 +455,9 @@ export function AdminPanel({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="truncate text-sm font-medium">{chat.title}</span>
                         {chat.is_official && (
-                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                            OFFICIAL
-                          </span>
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">OFFICIAL</span>
                         )}
-                        {chat.is_verified && (
-                          <CheckCircle2 className="h-3.5 w-3.5 fill-primary text-primary-foreground" />
-                        )}
+                        {chat.is_verified && <CheckCircle2 className="h-3.5 w-3.5 fill-primary text-primary-foreground" />}
                       </div>
                       <div className="truncate text-xs text-muted-foreground">
                         {chat.type === "channel" ? "Канал" : "Группа"} · {chat.subscriber_count || 0} подп.
@@ -419,24 +466,14 @@ export function AdminPanel({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => toggleChatVerified(chat)}
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                          chat.is_verified
-                            ? "text-primary hover:bg-primary/10"
-                            : "text-muted-foreground hover:bg-accent hover:text-primary"
-                        )}
+                        className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", chat.is_verified ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-accent hover:text-primary")}
                         title="Галочка"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => toggleChatOfficial(chat)}
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                          chat.is_official
-                            ? "text-primary hover:bg-primary/10"
-                            : "text-muted-foreground hover:bg-accent hover:text-primary"
-                        )}
+                        className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors", chat.is_official ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-accent hover:text-primary")}
                         title="Официальный"
                       >
                         <Shield className="h-4 w-4" />
@@ -449,6 +486,71 @@ export function AdminPanel({
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : tab === "reports" ? (
+            <div className="divide-y divide-border">
+              {filteredReports.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  Жалоб пока нет
+                </div>
+              ) : (
+                filteredReports.map((report) => (
+                  <div key={report.id} className="px-2 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={cn(
+                        "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                        report.status === "pending" ? "bg-yellow-500/10 text-yellow-700" :
+                        report.status === "resolved" ? "bg-emerald-500/10 text-emerald-700" :
+                        "bg-muted text-muted-foreground"
+                      )}>
+                        {report.status === "pending" ? "Ожидает" : report.status === "resolved" ? "Удовлетворена" : "Отклонена"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(report.created_at).toLocaleString("ru-RU")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Avatar profile={report.reported} size="xs" />
+                      <span className="text-sm font-medium">
+                        {report.reported?.display_name || "Пользователь"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        @{report.reported?.username}
+                      </span>
+                      {report.reported?.is_scam && (
+                        <span className="rounded bg-orange-600/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">СКАМ</span>
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Причина:</span> {REASON_LABELS[report.reason]}
+                    </div>
+                    {report.comment && (
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {report.comment}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      От: @{report.reporter?.username}
+                    </div>
+                    {report.status === "pending" && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleResolve(report.id, "resolved")}
+                          className="rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20"
+                        >
+                          Удовлетворить
+                        </button>
+                        <button
+                          onClick={() => handleResolve(report.id, "dismissed")}
+                          className="rounded-lg bg-muted px-3 py-1 text-xs font-medium hover:bg-accent"
+                        >
+                          Отклонить
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -488,9 +590,9 @@ export function AdminPanel({
         {actionUser && actionType && (
           <div className="border-t border-border bg-muted/30 p-4">
             <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertTriangle className={cn("h-4 w-4", actionType === "scam" ? "text-orange-700" : "text-destructive")} />
               <span className="text-sm font-medium">
-                {actionType === "block" ? "Блокировка" : "Мьют"} пользователя @{actionUser.username}
+                {actionType === "block" ? "Блокировка" : actionType === "scam" ? "Метка СКАМ" : "Мьют"} пользователя @{actionUser.username}
               </span>
             </div>
             <div className="space-y-3">
@@ -514,14 +616,19 @@ export function AdminPanel({
                   <span className="text-xs text-muted-foreground">0 = навсегда</span>
                 </div>
               )}
+              {actionType === "scam" && (
+                <p className="text-xs text-orange-700">
+                  Пользователь будет помечен как мошенник. Ему заблокируется отправка сообщений и звонков.
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={doAction}
                   disabled={busy || !reason.trim()}
-                  className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-destructive text-sm font-medium text-destructive-foreground disabled:opacity-50"
+                  className={cn("flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-medium text-white disabled:opacity-50", actionType === "scam" ? "bg-orange-600" : "bg-destructive")}
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {actionType === "block" ? "Заблокировать" : "Замьютить"}
+                  {actionType === "block" ? "Заблокировать" : actionType === "scam" ? "Пометить СКАМ" : "Замьютить"}
                 </button>
                 <button
                   onClick={() => {

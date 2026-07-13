@@ -304,15 +304,28 @@ function StatusTicks({ status }: { status: string }) {
   return null;
 }
 
-function downloadAttachment(url: string, filename?: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename || "file";
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+async function downloadAttachment(url: string, filename?: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "file";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "file";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 function MessageContent({

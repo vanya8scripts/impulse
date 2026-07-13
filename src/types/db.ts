@@ -22,6 +22,24 @@ export type PrivacySetting = "everyone" | "contacts" | "nobody";
 
 export type ChatMemberRole = "owner" | "admin" | "member" | "subscriber";
 
+export type ReportReason = "spam" | "scam" | "harassment" | "fake" | "violence" | "pornography" | "other";
+export type ReportStatus = "pending" | "reviewing" | "resolved" | "dismissed";
+
+export interface Report {
+  id: string;
+  reporter_id: string;
+  reported_id: string;
+  reason: ReportReason;
+  comment: string | null;
+  status: ReportStatus;
+  admin_note: string | null;
+  resolved_by: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  reporter?: Profile;
+  reported?: Profile;
+}
+
 export interface Profile {
   id: string;
   username: string;
@@ -42,6 +60,11 @@ export interface Profile {
   mute_until: string | null;
   who_can_message: PrivacySetting;
   who_can_call: PrivacySetting;
+  is_scam: boolean;
+  scam_reason: string | null;
+  scam_set_by: string | null;
+  scam_set_at: string | null;
+  reports_count: number;
 }
 
 export interface Chat {

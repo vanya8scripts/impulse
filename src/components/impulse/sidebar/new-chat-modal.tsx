@@ -127,15 +127,21 @@ export function NewChatModal({
           ? await createChannel(channelName.trim(), channelDesc.trim() || undefined)
           : await createGroup(channelName.trim(), channelDesc.trim() || undefined);
 
-      const { data: chatData } = await db
+      if (!id) throw new Error("Не удалось получить ID чата");
+
+      // даём БД время на коммит
+      await new Promise((r) => setTimeout(r, 300));
+
+      const { data: chatData, error: chatErr } = await db
         .from("chats")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
       const { data: members } = await db
         .from("chat_members")
         .select("*")
         .eq("chat_id", id);
+
       if (chatData && members) {
         useChatsStore.getState().upsertChat({
           ...chatData,
@@ -143,12 +149,18 @@ export function NewChatModal({
           last_message: null,
           unread_count: 0,
         } as never);
+      } else {
+        // обновим список чатов с сервера
+        const { fetchChatsForUser } = await import("@/lib/impulse");
+        const chats = await fetchChatsForUser(profile.id);
+        useChatsStore.getState().setChats(chats);
       }
       setActiveChat(id);
       onOpenChange(false);
       toast.success(tab === "channel" ? "Канал создан" : "Группа создана");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Не удалось создать");
+      const msg = e instanceof Error ? e.message : "Не удалось создать";
+      toast.error(msg);
     } finally {
       setCreating(false);
     }

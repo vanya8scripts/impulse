@@ -95,3 +95,17 @@ export function isImageMime(mime: string | null) {
 export function isVideoMime(mime: string | null) {
   return Boolean(mime && mime.startsWith("video/"));
 }
+
+export function displayName(profile: { display_name: string; is_blocked?: boolean; is_scam?: boolean } | null | undefined): string {
+  if (!profile) return "Пользователь";
+  if (profile.is_scam) return "СКАЗ · заблокирован";
+  if (profile.is_blocked) return "Аккаунт заблокирован";
+  return profile.display_name;
+}
+
+export function blockStatus(profile: { is_blocked?: boolean; is_scam?: boolean; block_reason?: string | null; scam_reason?: string | null } | null | undefined): { type: "scam" | "blocked" | null; reason: string | null } {
+  if (!profile) return { type: null, reason: null };
+  if (profile.is_scam) return { type: "scam", reason: profile.scam_reason };
+  if (profile.is_blocked) return { type: "blocked", reason: profile.block_reason };
+  return { type: null, reason: null };
+}

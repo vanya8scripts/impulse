@@ -162,7 +162,9 @@ function ChatRow({
 }) {
   const name =
     chat.type === "direct"
-      ? chat.peer?.display_name || "Пользователь"
+      ? chat.peer?.is_blocked || chat.peer?.is_scam
+        ? (chat.peer?.is_scam ? "СКАЗ · заблокирован" : "Аккаунт заблокирован")
+        : chat.peer?.display_name || "Пользователь"
       : chat.title || (chat.type === "channel" ? "Канал" : "Группа");
 
   const lastMsg = chat.last_message;
