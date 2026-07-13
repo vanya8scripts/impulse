@@ -13,9 +13,6 @@ export function EmptyChatState({ onOpenSidebar }: { onOpenSidebar: () => void })
       </button>
 
       <div className="flex flex-col items-center gap-5 px-6 text-center">
-        <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-2xl shadow-primary/40">
-          <span className="text-2xl font-bold tracking-tight">И</span>
-        </div>
         <div>
           <h2 className="text-2xl font-semibold">Добро пожаловать в Импульс</h2>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">

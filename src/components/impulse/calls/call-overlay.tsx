@@ -5,7 +5,7 @@ import { useCallStore } from "@/stores/call-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useChatsStore } from "@/stores/chats-store";
 import { CallEngine } from "@/lib/call-engine";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { updateCallStatus, sendMessage } from "@/lib/impulse";
 import { Avatar } from "@/components/impulse/avatar";
 import { formatDuration } from "@/lib/format";

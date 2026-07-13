@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { fetchProfile, updateLastSeen } from "@/lib/impulse";
 
 export function useAuthBootstrap() {
@@ -16,7 +16,7 @@ export function useAuthBootstrap() {
     let active = true;
 
     async function init() {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await db.auth.getSession();
       if (!active) return;
       const session = data.session;
       if (session?.user) {
@@ -32,7 +32,7 @@ export function useAuthBootstrap() {
 
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = db.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         try {
           const p = await fetchProfile(session.user.id);

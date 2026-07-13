@@ -5,7 +5,7 @@ import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCallStore } from "@/stores/call-store";
 import { useChatMessages } from "@/hooks/impulse/use-realtime";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { markChatRead, toggleChatMuted, toggleChatPinned, createCallRecord } from "@/lib/impulse";
 import { Avatar } from "@/components/impulse/avatar";
 import { MessageList } from "@/components/impulse/chat/message-list";
@@ -109,7 +109,7 @@ export function ChatArea() {
     try {
       const call = await createCallRecord(chat.id, profile.id, type);
       openOutgoing(chat.id, peer.id, type, (call as { id: string }).id);
-      const channel = supabase.channel(`impulse:${peer.id}`);
+      const channel = db.channel(`impulse:${peer.id}`);
       await channel.subscribe();
       channel.send({
         type: "broadcast",
@@ -121,7 +121,7 @@ export function ChatArea() {
           type,
         },
       });
-      supabase.removeChannel(channel);
+      db.removeChannel(channel);
     } catch {
       toast.error("Не удалось начать звонок");
     }
@@ -148,7 +148,7 @@ export function ChatArea() {
   const onDeleteChat = async () => {
     if (!confirm("Удалить чат? История сообщений останется у собеседника.")) return;
     try {
-      await supabase.from("chat_members").delete().eq("chat_id", chat.id).eq("user_id", profile.id);
+      await db.from("chat_members").delete().eq("chat_id", chat.id).eq("user_id", profile.id);
       useChatsStore.getState().removeChat(chat.id);
       setActiveChat(null);
       toast.success("Чат удалён");

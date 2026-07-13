@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { useChatsStore } from "@/stores/chats-store";
 import { useCallStore } from "@/stores/call-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -51,7 +51,7 @@ export function useRealtime() {
 
     bootstrap();
 
-    const channel = supabase.channel(`impulse:${profile.id}`, {
+    const channel = db.channel(`impulse:${profile.id}`, {
       config: { presence: { key: profile.id } },
     });
 
@@ -73,7 +73,7 @@ export function useRealtime() {
         }
         addMessage(msg.chat_id, msg);
         if (msg.sender_id && msg.sender_id !== profile!.id) {
-          const { data } = await supabase
+          const { data } = await db
             .from("profiles")
             .select("*")
             .eq("id", msg.sender_id)
@@ -177,7 +177,7 @@ export function useRealtime() {
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      db.removeChannel(channel);
     };
   }, [profile?.id]);
 

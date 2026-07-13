@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import type { Profile } from "@/types/db";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 
 interface AuthState {
   profile: Profile | null;
@@ -27,13 +27,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setError: (error) => set({ error }),
   setInitialized: (initialized) => set({ initialized }),
   signOut: async () => {
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     set({ profile: null });
   },
   refreshProfile: async () => {
     const current = get().profile;
     if (!current) return;
-    const { data } = await supabase
+    const { data } = await db
       .from("profiles")
       .select("*")
       .eq("id", current.id)

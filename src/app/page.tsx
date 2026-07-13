@@ -4,13 +4,13 @@ import { useAuthBootstrap } from "@/hooks/impulse/use-auth-bootstrap";
 import { AuthScreen } from "@/components/impulse/auth/auth-screen";
 import { Messenger } from "@/components/impulse/messenger";
 import { SetupScreen } from "@/components/impulse/setup-screen";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isBackendConfigured } from "@/lib/backend";
 import { Loader2 } from "lucide-react";
 
 export default function Page() {
   const { profile, initialized } = useAuthBootstrap();
 
-  if (!isSupabaseConfigured) {
+  if (!isBackendConfigured) {
     return <SetupScreen />;
   }
 

@@ -140,9 +140,6 @@ export function AuthScreen() {
             <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600" />
             <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_20%_20%,white_1px,transparent_1px)] [background-size:24px_24px]" />
             <div className="relative z-10 flex items-center gap-3 text-white">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-                <span className="text-xl font-bold tracking-tight">И</span>
-              </div>
               <div>
                 <div className="text-2xl font-semibold tracking-tight">Импульс</div>
                 <div className="text-sm text-white/80">мессенджер нового поколения</div>
@@ -171,10 +168,7 @@ export function AuthScreen() {
           </div>
 
           <div className="p-7 sm:p-10">
-            <div className="mb-7 flex items-center gap-2 lg:hidden">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white">
-                <span className="text-lg font-bold">И</span>
-              </div>
+            <div className="mb-7 lg:hidden">
               <span className="text-xl font-semibold">Импульс</span>
             </div>
 

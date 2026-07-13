@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -31,7 +31,7 @@ export class CallEngine {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private callId: string;
-  private channel: ReturnType<typeof supabase.channel> | null = null;
+  private channel: ReturnType<typeof db.channel> | null = null;
   private meId: string;
   private peerId: string;
   private isCaller: boolean;
@@ -90,7 +90,7 @@ export class CallEngine {
       this.pc!.addTrack(track, this.localStream!);
     });
 
-    this.channel = supabase.channel(`impulse-call:${this.callId}`, {
+    this.channel = db.channel(`impulse-call:${this.callId}`, {
       config: { broadcast: { self: false } },
     });
 
@@ -208,7 +208,7 @@ export class CallEngine {
     this.localStream = null;
     if (this.channel) {
       try {
-        supabase.removeChannel(this.channel);
+        db.removeChannel(this.channel);
       } catch {
         /* noop */
       }

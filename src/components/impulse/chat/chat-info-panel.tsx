@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar } from "@/components/impulse/avatar";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { formatLastSeen } from "@/lib/format";
 import { X, Bell, BellOff, Pin, PinOff, Trash2, AtSign, Calendar, Info } from "lucide-react";
 import { toggleChatMuted, toggleChatPinned } from "@/lib/impulse";
@@ -56,7 +56,7 @@ export function ChatInfoPanel({
   const deleteChat = async () => {
     if (!confirm("Удалить чат?")) return;
     try {
-      await supabase.from("chat_members").delete().eq("chat_id", chat.id).eq("user_id", profile.id);
+      await db.from("chat_members").delete().eq("chat_id", chat.id).eq("user_id", profile.id);
       removeChat(chat.id);
       setActiveChat(null);
       onClose();

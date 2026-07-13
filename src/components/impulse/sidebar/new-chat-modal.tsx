@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import type { Profile } from "@/types/db";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { cn } from "@/lib/format";
 
 type Tab = "direct" | "channel" | "group";
@@ -82,12 +82,12 @@ export function NewChatModal({
     setStarting(user.id);
     try {
       const chatId = await findOrCreateDirectChat(profile.id, user.id);
-      const { data: chatData } = await supabase
+      const { data: chatData } = await db
         .from("chats")
         .select("*")
         .eq("id", chatId)
         .single();
-      const { data: members } = await supabase
+      const { data: members } = await db
         .from("chat_members")
         .select("*")
         .eq("chat_id", chatId);
@@ -127,12 +127,12 @@ export function NewChatModal({
           ? await createChannel(channelName.trim(), channelDesc.trim() || undefined)
           : await createGroup(channelName.trim(), channelDesc.trim() || undefined);
 
-      const { data: chatData } = await supabase
+      const { data: chatData } = await db
         .from("chats")
         .select("*")
         .eq("id", id)
         .single();
-      const { data: members } = await supabase
+      const { data: members } = await db
         .from("chat_members")
         .select("*")
         .eq("chat_id", id);

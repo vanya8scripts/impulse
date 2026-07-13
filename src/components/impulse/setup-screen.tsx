@@ -6,23 +6,23 @@ import { Copy, Check, Database, KeyRound, Rocket, Terminal } from "lucide-react"
 const STEPS = [
   {
     icon: Database,
-    title: "1. Создай проект Supabase",
-    body: "Перейди на supabase.com, залогинься через GitHub и создай новый проект. Подожди 1–2 минуты, пока подготовится база.",
+    title: "1. Создай бэкенд",
+    body: "Перейди на сайт платформы баз данных, залогинься и создай новый проект. Подожди 1–2 минуты, пока подготовится база.",
   },
   {
     icon: KeyRound,
     title: "2. Отключи подтверждение email",
-    body: "В Supabase: Authentication → Providers → Email. Выключи тумблер «Confirm email». Импульс использует локальные юзернеймы, поэтому письмо не нужно.",
+    body: "В настройках аутентификации (Authentication → Providers → Email) выключи тумблер Confirm email. Импульс использует локальные юзернеймы, письмо не нужно.",
   },
   {
     icon: Terminal,
     title: "3. Выполни SQL-схему",
-    body: "Открой SQL Editor в Supabase, вставь содержимое файла sql/schema.sql из репозитория и нажми Run. Создадутся таблицы, политики безопасности и storage-бакеты.",
+    body: "Открой SQL Editor, вставь содержимое файла sql/setup.sql из репозитория и нажми Run. Создадутся таблицы, политики безопасности и хранилище.",
   },
   {
     icon: KeyRound,
     title: "4. Впиши ключи в проект",
-    body: "Скопируй Project URL и anon public key (Project Settings → API). Создай файл .env.local и впиши переменные NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+    body: "Скопируй Project URL и anon public key (Project Settings → API). Создай файл .env.local и впиши переменные NEXT_PUBLIC_DB_URL и NEXT_PUBLIC_DB_KEY.",
   },
   {
     icon: Rocket,
@@ -49,12 +49,9 @@ export function SetupScreen() {
 
       <div className="relative mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-primary/40">
-            <span className="text-3xl font-bold tracking-tight">И</span>
-          </div>
           <h1 className="text-3xl font-semibold tracking-tight">Добро пожаловать в Импульс</h1>
           <p className="mt-2 text-muted-foreground">
-            Чтобы запустить мессенджер, подключи бесплатный Supabase-бэкенд. Это займёт ~5 минут.
+            Чтобы запустить мессенджер, подключи бесплатный бэкенд. Это займёт ~5 минут.
           </p>
         </div>
 
@@ -88,13 +85,13 @@ export function SetupScreen() {
             </div>
             <div className="relative">
               <pre className="overflow-x-auto rounded-xl bg-muted/70 p-4 text-xs leading-relaxed">
-                <code>{`NEXT_PUBLIC_SUPABASE_URL=https://ваш-проект.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=ваш-anon-public-key`}</code>
+                <code>{`NEXT_PUBLIC_DB_URL=https://ваш-проект.db.co
+NEXT_PUBLIC_DB_KEY=ваш-anon-public-key`}</code>
               </pre>
               <button
                 onClick={() =>
                   copy(
-                    `NEXT_PUBLIC_SUPABASE_URL=https://ваш-проект.supabase.co\nNEXT_PUBLIC_SUPABASE_ANON_KEY=ваш-anon-public-key`,
+                    `NEXT_PUBLIC_DB_URL=https://ваш-проект.db.co\nNEXT_PUBLIC_DB_KEY=ваш-anon-public-key`,
                     "env"
                   )
                 }
@@ -104,7 +101,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=ваш-anon-public-key`}</code>
               </button>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Ключи берём в Supabase Dashboard → Project Settings → API.
+              Ключи берём в Dashboard → Project Settings → API.
             </p>
           </div>
 
@@ -112,8 +109,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=ваш-anon-public-key`}</code>
             <h3 className="font-medium text-foreground">После настройки</h3>
             <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
               Сохрани <code className="rounded bg-muted px-1.5 py-0.5 text-xs">.env.local</code> и
-              перезагрузи страницу. Появится экран регистрации. Полный туториал по деплою
-              на GitHub Pages — в файле <code className="rounded bg-muted px-1.5 py-0.5 text-xs">README.md</code>.
+              перезагрузи страницу. Появится экран регистрации.
             </p>
           </div>
         </div>

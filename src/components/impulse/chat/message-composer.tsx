@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useChatsStore } from "@/stores/chats-store";
 import { sendMessage, uploadAttachment } from "@/lib/impulse";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/backend";
 import { encryptText, isEncrypted } from "@/lib/crypto";
 import { EmojiPicker } from "@/components/impulse/chat/emoji-picker";
 import {
@@ -66,7 +66,7 @@ export function MessageComposer({ chatId }: { chatId: string }) {
     if (!profile) return;
     const chat = useChatsStore.getState().chats.find((c) => c.id === chatId);
     if (!chat?.peer) return;
-    const channel = supabase.channel(`impulse:${chat.peer.id}`);
+    const channel = db.channel(`impulse:${chat.peer.id}`);
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         channel.send({
@@ -74,7 +74,7 @@ export function MessageComposer({ chatId }: { chatId: string }) {
           event: "typing",
           payload: { chatId, userId: profile.id, typing },
         });
-        setTimeout(() => supabase.removeChannel(channel), 500);
+        setTimeout(() => db.removeChannel(channel), 500);
       }
     });
   };
@@ -173,7 +173,7 @@ export function MessageComposer({ chatId }: { chatId: string }) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       if (msg === "storage-not-configured") {
-        toast.error("Файл больше 600 КБ. Создайте storage bucket в Supabase для больших файлов.");
+        toast.error("Файл больше 600 КБ. Создайте storage bucket в базе данных для больших файлов.");
       } else {
         toast.error(`Не удалось отправить ${file.name}`);
       }
