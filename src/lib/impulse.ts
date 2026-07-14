@@ -219,104 +219,33 @@ export async function findOrCreateDirectChat(
 }
 
 export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails[]> {
-  const { data: memberships, error: mErr } = await db
-    .from("chat_members")
-    .select(
-      "chat_id, role, joined_at, muted, pinned, last_read_at, archived, chat:chats(*)"
-    )
-    .eq("user_id", userId);
-  if (mErr) throw mErr;
-
-  const rows = (memberships || []) as Array<{
-    chat_id: string;
-    role: string;
-    joined_at: string;
-    muted: boolean;
-    pinned: boolean;
-    last_read_at: string | null;
-    archived: boolean;
-    chat: Chat;
-  }>;
-
-  if (rows.length === 0) return [];
-
-  const chatIds = rows.map((r) => r.chat_id);
-
-  const { data: allMembers } = await db
-    .from("chat_members")
-    .select("chat_id, user_id")
-    .in("chat_id", chatIds);
-  const memberRows = (allMembers || []) as ChatMember[];
-
-  const peerIds = Array.from(
-    new Set(
-      memberRows
-        .filter((m) => m.user_id !== userId)
-        .map((m) => m.user_id)
-    )
-  );
-  const { data: peers } = await db
-    .from("profiles")
-    .select("*")
-    .in("id", peerIds);
-  const peerMap = new Map<string, Profile>(
-    ((peers || []) as Profile[]).map((p) => [p.id, p])
-  );
-
-  const { data: lastMessages } = await db
-    .from("messages")
-    .select("*")
-    .in("chat_id", chatIds)
-    .order("created_at", { ascending: false })
-    .limit(1, { foreignTable: "messages" });
-  void lastMessages;
-
-  const result: ChatWithDetails[] = [];
-  for (const row of rows) {
-    const chatMembers = memberRows.filter((m) => m.chat_id === row.chat_id);
-    let peer: Profile | undefined;
-    if (row.chat.type === "direct") {
-      const peerMember = chatMembers.find((m) => m.user_id !== userId);
-      if (peerMember) peer = peerMap.get(peerMember.user_id);
-    }
-
-    const { data: lastMsg } = await db
-      .from("messages")
-      .select("*")
-      .eq("chat_id", row.chat_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let unreadQuery = db
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("chat_id", row.chat_id)
-      .neq("sender_id", userId);
-    if (row.last_read_at) {
-      unreadQuery = unreadQuery.gt("created_at", row.last_read_at);
-    }
-    const { count } = await unreadQuery;
-
-    result.push({
-      ...row.chat,
-      members: chatMembers,
-      last_message: (lastMsg as Message) || null,
-      unread_count: count || 0,
-      peer,
-      pinned: row.pinned,
-      muted: row.muted,
-    } as ChatWithDetails);
-  }
-
-  result.sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    const aTime = a.last_message_at || a.created_at;
-    const bTime = b.last_message_at || b.created_at;
-    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  const { data, error } = await db.rpc("get_user_chats_fast");
+  if (error) throw error;
+  if (!data) return [];
+  const rows = data as Array<Record<string, unknown>>;
+  return rows.map((row) => {
+    const members = (row.members as ChatMember[]) || [];
+    return {
+      id: row.id as string,
+      type: row.type as Chat["type"],
+      title: row.title as string | null,
+      avatar_url: row.avatar_url as string | null,
+      created_by: row.created_by as string,
+      created_at: row.created_at as string,
+      last_message_at: row.last_message_at as string | null,
+      is_official: row.is_official as boolean,
+      is_verified: row.is_verified as boolean,
+      description: row.description as string | null,
+      subscriber_count: row.subscriber_count as number,
+      members,
+      last_message: (row.last_message as Message) || null,
+      unread_count: (row.unread_count as number) || 0,
+      peer: (row.peer as Profile) || undefined,
+      pinned: row.my_pinned as boolean,
+      muted: row.my_muted as boolean,
+      archived: row.my_archived as boolean,
+    } as ChatWithDetails;
   });
-
-  return result;
 }
 
 export async function fetchMessages(chatId: string, limit = 100) {

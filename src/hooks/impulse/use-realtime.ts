@@ -72,30 +72,35 @@ export function useRealtime() {
           setChats(refreshed);
           chatsRef.current = new Set(refreshed.map((c) => c.id));
           refreshed.forEach((c) => c.peer && setPeer(c.peer.id, c.peer));
+          return;
         }
         addMessage(msg.chat_id, msg);
-        if (msg.sender_id && msg.sender_id !== profile!.id) {
-          const { data } = await db
-            .from("profiles")
-            .select("*")
-            .eq("id", msg.sender_id)
-            .maybeSingle();
-          if (data) setPeer(msg.sender_id, data as Profile);
 
+        const store = useChatsStore.getState();
+        const chat = store.chats.find((c) => c.id === msg.chat_id);
+        if (chat) {
+          const isActive = store.activeChatId === msg.chat_id;
+          const isMine = msg.sender_id === profile!.id;
+          store.upsertChat({
+            ...chat,
+            last_message: msg,
+            last_message_at: msg.created_at,
+            unread_count: isActive || isMine ? 0 : (chat.unread_count || 0) + 1,
+          });
+        }
+
+        if (msg.sender_id && msg.sender_id !== profile!.id) {
           const activeId = useChatsStore.getState().activeChatId;
           if (activeId === msg.chat_id) {
             markChatRead(msg.chat_id, profile!.id).catch(() => {});
           } else {
-            await db
-              .from("messages")
+            db.from("messages")
               .update({ status: "delivered" })
               .eq("id", msg.id)
-              .neq("sender_id", profile!.id);
+              .neq("sender_id", profile!.id)
+              .then(() => {});
           }
         }
-        const refreshed = await fetchChatsForUser(profile!.id);
-        if (cancelled) return;
-        setChats(refreshed);
       }
     );
 

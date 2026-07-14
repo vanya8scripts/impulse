@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar } from "@/components/impulse/avatar";
@@ -8,7 +8,7 @@ import { formatTime, cn } from "@/lib/format";
 import { Search, PenSquare, MessageCircle, Pin, BellOff, Megaphone, Users, BadgeCheck, Archive, ArchiveRestore, Trash2, Bell } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { db } from "@/lib/backend";
-import { toggleChatArchived, toggleChatMuted, toggleChatPinned, searchProfilesByUsername } from "@/lib/impulse";
+import { toggleChatArchived, toggleChatMuted, toggleChatPinned, searchProfilesByUsername, findOrCreateDirectChat } from "@/lib/impulse";
 import type { ChatWithDetails, Profile } from "@/types/db";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ export function Sidebar({ onNewChat }: { onNewChat: () => void }) {
   const searching = useChatsStore((s) => s.searching);
   const profile = useAuthStore((s) => s.profile);
   const [query, setQuery] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredChats = useMemo(() => {
     if (!query.trim()) return chats;
@@ -34,34 +35,41 @@ export function Sidebar({ onNewChat }: { onNewChat: () => void }) {
     });
   }, [chats, query]);
 
-  const onSearch = async (v: string) => {
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, []);
+
+  const onSearch = (v: string) => {
     setQuery(v);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     if (!v.trim() || !profile) {
       setSearchResults([]);
       setSearching(false);
       return;
     }
     if (v.trim().length < 2) {
-      setSearching(true);
+      setSearching(false);
       return;
     }
     setSearching(true);
-    try {
-      const results = await searchProfilesByUsername(v.trim(), profile.id);
-      setSearchResults(results);
-      results.forEach((r) => setPeer(r.id, r));
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchProfilesByUsername(v.trim(), profile.id);
+        setSearchResults(results);
+        results.forEach((r) => setPeer(r.id, r));
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
   };
 
   const onSelectUser = async (user: Profile) => {
     if (!profile) return;
     try {
-      const { findOrCreateDirectChat } = await import("@/lib/impulse");
-      const { db } = await import("@/lib/backend");
       const chatId = await findOrCreateDirectChat(profile.id, user.id);
       const { data: chatData } = await db.from("chats").select("*").eq("id", chatId).maybeSingle();
       const { data: members } = await db.from("chat_members").select("*").eq("chat_id", chatId);
@@ -79,7 +87,7 @@ export function Sidebar({ onNewChat }: { onNewChat: () => void }) {
       setQuery("");
       setSearchResults([]);
     } catch {
-      void toast;
+      toast.error("Не удалось создать чат");
     }
   };
 
