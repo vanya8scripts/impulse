@@ -11,9 +11,8 @@ import { NewChatModal } from "@/components/impulse/sidebar/new-chat-modal";
 import { CallOverlay } from "@/components/impulse/calls/call-overlay";
 import { EmptyChatState } from "@/components/impulse/chat/empty-state";
 import { AdminPanel } from "@/components/impulse/admin/admin-panel";
-import { Menu, Settings as SettingsIcon, LogOut, Shield, X, Gamepad2 } from "lucide-react";
+import { Menu, Settings as SettingsIcon, LogOut, Shield, X } from "lucide-react";
 import { Avatar } from "@/components/impulse/avatar";
-import { GamesModal } from "@/components/impulse/games/games-modal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,11 +31,10 @@ export function Messenger() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [gamesOpen, setGamesOpen] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    
     if (activeChatId) setMobileSidebar(false);
   }, [activeChatId]);
 
@@ -95,10 +93,6 @@ export function Messenger() {
                     Админ-панель
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => setGamesOpen(true)}>
-                  <Gamepad2 className="mr-2 h-4 w-4" />
-                  Игры
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                   <SettingsIcon className="mr-2 h-4 w-4" />
                   Настройки
@@ -137,7 +131,6 @@ export function Messenger() {
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NewChatModal open={newChatOpen} onOpenChange={setNewChatOpen} />
       {isAdmin && <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} />}
-      <GamesModal open={gamesOpen} onOpenChange={setGamesOpen} />
       <CallOverlay />
     </div>
   );

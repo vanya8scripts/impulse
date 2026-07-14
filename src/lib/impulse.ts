@@ -222,7 +222,7 @@ export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails
   const { data: memberships, error: mErr } = await db
     .from("chat_members")
     .select(
-      "chat_id, role, joined_at, muted, pinned, last_read_at, chat:chats(*)"
+      "chat_id, role, joined_at, muted, pinned, last_read_at, archived, chat:chats(*)"
     )
     .eq("user_id", userId);
   if (mErr) throw mErr;
@@ -234,6 +234,7 @@ export async function fetchChatsForUser(userId: string): Promise<ChatWithDetails
     muted: boolean;
     pinned: boolean;
     last_read_at: string | null;
+    archived: boolean;
     chat: Chat;
   }>;
 
@@ -472,6 +473,14 @@ export async function toggleChatMuted(chatId: string, userId: string, muted: boo
     .eq("user_id", userId);
 }
 
+export async function toggleChatArchived(chatId: string, userId: string, archived: boolean) {
+  await db
+    .from("chat_members")
+    .update({ archived })
+    .eq("chat_id", chatId)
+    .eq("user_id", userId);
+}
+
 export async function createChannel(title: string, description?: string, avatarUrl?: string) {
   const { data, error } = await db.rpc("create_channel", {
     p_title: title,
@@ -635,40 +644,6 @@ export async function adminSetScam(userId: string, scam: boolean, reason?: strin
     p_reason: reason || null,
   });
   if (error) throw error;
-}
-
-export async function addChatMember(chatId: string, userId: string) {
-  const { error } = await db.rpc("add_chat_member", {
-    p_chat_id: chatId,
-    p_user_id: userId,
-  });
-  if (error) throw error;
-}
-
-export async function removeChatMember(chatId: string, userId: string) {
-  const { error } = await db.rpc("remove_chat_member", {
-    p_chat_id: chatId,
-    p_user_id: userId,
-  });
-  if (error) throw error;
-}
-
-export async function fetchChatMembers(chatId: string) {
-  const { data, error } = await db
-    .from("chat_members")
-    .select("user_id, role, joined_at")
-    .eq("chat_id", chatId);
-  if (error) throw error;
-  const memberRows = (data || []) as Array<{ user_id: string; role: string; joined_at: string }>;
-  if (!memberRows.length) return [];
-  const { data: users } = await db
-    .from("profiles")
-    .select("*")
-    .in("id", memberRows.map((m) => m.user_id));
-  return ((users || []) as Profile[]).map((u) => ({
-    ...u,
-    role: memberRows.find((m) => m.user_id === u.id)?.role || "member",
-  }));
 }
 
 export async function changePasswordWithCurrent(

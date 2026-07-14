@@ -10,36 +10,24 @@ const LINES = [
   [0, 4, 8], [2, 4, 6],
 ];
 
-function calcWinner(squares: (string | null)[]): string | null {
+type Cell = "X" | "O" | null;
+
+function calcWinner(squares: Cell[]): Cell | null {
   for (const [a, b, c] of LINES) {
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a];
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+      return squares[a];
+    }
   }
   return null;
 }
 
-function bestMove(squares: (string | null)[]): number {
-  let best = -Infinity;
-  let move = -1;
-  for (let i = 0; i < 9; i++) {
-    if (!squares[i]) {
-      squares[i] = "O";
-      const score = minimax(squares, 0, false);
-      squares[i] = null;
-      if (score > best) {
-        best = score;
-        move = i;
-      }
-    }
-  }
-  return move;
-}
-
-function minimax(squares: (string | null)[], depth: number, isMax: boolean): number {
-  const w = calcWinner(squares);
-  if (w === "O") return 10 - depth;
-  if (w === "X") return depth - 10;
+function minimax(squares: Cell[], depth: number, isMaximizing: boolean): number {
+  const winner = calcWinner(squares);
+  if (winner === "O") return 10 - depth;
+  if (winner === "X") return depth - 10;
   if (squares.every(Boolean)) return 0;
-  if (isMax) {
+
+  if (isMaximizing) {
     let best = -Infinity;
     for (let i = 0; i < 9; i++) {
       if (!squares[i]) {
@@ -62,51 +50,80 @@ function minimax(squares: (string | null)[], depth: number, isMax: boolean): num
   }
 }
 
+function bestMove(squares: Cell[]): number {
+  let bestScore = -Infinity;
+  let move = -1;
+  for (let i = 0; i < 9; i++) {
+    if (!squares[i]) {
+      squares[i] = "O";
+      const score = minimax(squares, 0, false);
+      squares[i] = null;
+      if (score > bestScore) {
+        bestScore = score;
+        move = i;
+      }
+    }
+  }
+  return move;
+}
+
 export function TicTacToe() {
-  const [squares, setSquares] = useState<(string | null)[]>(Array(9).fill(null));
+  const [squares, setSquares] = useState<Cell[]>(Array(9).fill(null));
   const [xTurn, setXTurn] = useState(true);
   const [scores, setScores] = useState({ x: 0, o: 0, draw: 0 });
+  const [locked, setLocked] = useState(false);
 
   const winner = calcWinner(squares);
   const isDraw = !winner && squares.every(Boolean);
+  const winningLine = winner ? LINES.find(([a, b, c]) => squares[a] === winner && squares[b] === winner && squares[c] === winner) : null;
 
   const click = (i: number) => {
-    if (squares[i] || winner) return;
+    if (squares[i] || winner || locked || !xTurn) return;
     const next = [...squares];
     next[i] = "X";
     setSquares(next);
     setXTurn(false);
+    setLocked(true);
+
     const w = calcWinner(next);
     if (w) {
       setScores((s) => ({ ...s, x: s.x + 1 }));
+      setLocked(false);
       return;
     }
     if (next.every(Boolean)) {
       setScores((s) => ({ ...s, draw: s.draw + 1 }));
+      setLocked(false);
       return;
     }
+
     setTimeout(() => {
       const move = bestMove([...next]);
       if (move >= 0) {
         const after = [...next];
         after[move] = "O";
         setSquares(after);
-        setXTurn(true);
         const w2 = calcWinner(after);
-        if (w2) setScores((s) => ({ ...s, o: s.o + 1 }));
-        else if (after.every(Boolean)) setScores((s) => ({ ...s, draw: s.draw + 1 }));
+        if (w2) {
+          setScores((s) => ({ ...s, o: s.o + 1 }));
+        } else if (after.every(Boolean)) {
+          setScores((s) => ({ ...s, draw: s.draw + 1 }));
+        }
       }
-    }, 400);
+      setXTurn(true);
+      setLocked(false);
+    }, 350);
   };
 
   const reset = () => {
     setSquares(Array(9).fill(null));
     setXTurn(true);
+    setLocked(false);
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-4 text-sm">
+      <div className="flex gap-3 text-sm">
         <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5">
           <X className="h-4 w-4 text-primary" />
           <span className="font-semibold">{scores.x}</span>
@@ -122,23 +139,26 @@ export function TicTacToe() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {squares.map((sq, i) => (
-          <button
-            key={i}
-            onClick={() => click(i)}
-            disabled={!!sq || !!winner || !xTurn}
-            className={cn(
-              "flex h-20 w-20 items-center justify-center rounded-2xl border-2 text-3xl font-bold transition-all sm:h-24 sm:w-24",
-              sq === "X" ? "border-primary/30 bg-primary/5 text-primary" : "",
-              sq === "O" ? "border-destructive/30 bg-destructive/5 text-destructive" : "",
-              !sq && "border-border hover:border-primary/40 hover:bg-accent",
-              winner && winner === sq && "ring-2 ring-yellow-400"
-            )}
-          >
-            {sq === "X" && <X className="h-8 w-8" />}
-            {sq === "O" && <Circle className="h-8 w-8" />}
-          </button>
-        ))}
+        {squares.map((sq, i) => {
+          const isWinning = winningLine?.includes(i);
+          return (
+            <button
+              key={i}
+              onClick={() => click(i)}
+              disabled={!!sq || !!winner || locked}
+              className={cn(
+                "flex h-20 w-20 items-center justify-center rounded-2xl border-2 text-3xl font-bold transition-all sm:h-24 sm:w-24",
+                sq === "X" && "border-primary/30 bg-primary/5 text-primary",
+                sq === "O" && "border-destructive/30 bg-destructive/5 text-destructive",
+                !sq && "border-border hover:border-primary/40 hover:bg-accent",
+                isWinning && "ring-2 ring-yellow-400 bg-yellow-400/10"
+              )}
+            >
+              {sq === "X" && <X className="h-8 w-8" />}
+              {sq === "O" && <Circle className="h-8 w-8" />}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-3">
@@ -151,7 +171,7 @@ export function TicTacToe() {
           <div className="text-sm font-medium text-muted-foreground">Ничья!</div>
         ) : (
           <div className="text-sm text-muted-foreground">
-            {xTurn ? "Ваш ход (X)" : "ИИ думает…"}
+            {locked ? "ИИ думает…" : "Ваш ход (X)"}
           </div>
         )}
         <button

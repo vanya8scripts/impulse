@@ -32,7 +32,7 @@ function readStored(): ThemeState {
       };
     }
   } catch {
-    /* noop */
+    
   }
   const prefersDark =
     window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -48,7 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = readStored();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    
     setState(stored);
     applyTheme(stored.theme, stored.mode);
     setHydrated(true);
@@ -62,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         } catch {
-          /* noop */
+          
         }
         return next;
       });
@@ -78,7 +78,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         } catch {
-          /* noop */
+          
         }
         return next;
       });
@@ -91,7 +91,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme, mode }));
     } catch {
-      /* noop */
+      
     }
     setState({ theme, mode });
   }, []);

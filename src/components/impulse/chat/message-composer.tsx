@@ -286,12 +286,12 @@ export function MessageComposer({
   return (
     <div className="glass border-t border-border px-2 py-2.5 sm:px-4">
       {reply && (
-        <div className="mb-2 flex items-center gap-2.5 rounded-xl border-l-2 border-primary bg-card px-3 py-2">
+        <div className="mb-2 flex items-center gap-2 rounded-xl border-l-2 border-primary bg-card px-3 py-2">
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-primary truncate">
-              {reply.sender_id === profile?.id ? "Ответ на своё сообщение" : "Ответ на сообщение"}
+            <div className="text-xs font-medium text-primary">
+              {reply.sender_id === profile?.id ? "Ответ себе" : "Ответ"}
             </div>
-            <div className="truncate text-xs text-muted-foreground max-w-[260px]">
+            <div className="truncate text-xs text-muted-foreground">
               {reply.deleted_at
                 ? "Сообщение удалено"
                 : isEncrypted(reply.content)
@@ -301,7 +301,7 @@ export function MessageComposer({
           </div>
           <button
             onClick={() => setReply(null)}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground shrink-0"
+            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>

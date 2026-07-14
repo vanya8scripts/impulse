@@ -22,7 +22,7 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
 } from "lucide-react";
-import type { Message, MessageType } from "@/types/db";
+import type { Message, MessageType, Profile } from "@/types/db";
 import { cn, formatTime, formatDuration, formatFileSize } from "@/lib/format";
 import { editMessage, deleteMessage } from "@/lib/impulse";
 import { decryptText, encryptText, isEncrypted } from "@/lib/crypto";
@@ -41,6 +41,7 @@ interface Props {
   showAvatar: boolean;
   isFirstOfGroup: boolean;
   peerName?: string;
+  peerProfile?: Profile;
   memberIds?: string[];
 }
 
@@ -50,6 +51,7 @@ export function MessageBubble({
   showAvatar,
   isFirstOfGroup,
   peerName,
+  peerProfile,
   memberIds = [],
 }: Props) {
   const updateMessage = useChatsStore((s) => s.updateMessage);
@@ -59,23 +61,6 @@ export function MessageBubble({
   const [decrypted, setDecrypted] = useState<string>(message.content || "");
   const [replyDecrypted, setReplyDecrypted] = useState<string>("");
 
-  useEffect(() => {
-    let active = true;
-    if (message.content && isEncrypted(message.content) && memberIds.length) {
-      decryptText(message.content, message.chat_id, memberIds).then((text) => {
-        if (active) {
-          setDecrypted(text);
-        }
-      });
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDecrypted(message.content || "");
-    }
-    return () => {
-      active = false;
-    };
-  }, [message.content, message.chat_id, memberIds]);
-
   const replyToMessage = useChatsStore((s) =>
     message.reply_to
       ? s.messages[message.chat_id]?.find((m) => m.id === message.reply_to)
@@ -84,19 +69,30 @@ export function MessageBubble({
 
   useEffect(() => {
     let active = true;
+    if (message.content && isEncrypted(message.content) && memberIds.length) {
+      decryptText(message.content, message.chat_id, memberIds).then((text) => {
+        if (active) setDecrypted(text);
+      });
+    } else {
+      
+      setDecrypted(message.content || "");
+    }
+    return () => { active = false; };
+  }, [message.content, message.chat_id, memberIds]);
+
+  useEffect(() => {
+    let active = true;
     if (replyToMessage?.content && isEncrypted(replyToMessage.content) && memberIds.length) {
       decryptText(replyToMessage.content, replyToMessage.chat_id, memberIds).then((text) => {
         if (active) setReplyDecrypted(text);
       });
     } else if (replyToMessage?.content) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      
       setReplyDecrypted(replyToMessage.content);
     } else {
       setReplyDecrypted("");
     }
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [replyToMessage?.content, replyToMessage?.chat_id, memberIds]);
 
   if (message.type === "system") {
@@ -166,7 +162,7 @@ export function MessageBubble({
         >
           {!isMine && (
             <div className="w-8 shrink-0">
-              {showAvatar && <Avatar name={peerName} seed={message.sender_id} size="xs" />}
+              {showAvatar && <Avatar profile={peerProfile} name={peerName} seed={message.sender_id} size="xs" />}
             </div>
           )}
 
@@ -188,22 +184,23 @@ export function MessageBubble({
               {replyToMessage && !deleted && (
                 <div
                   className={cn(
-                    "mb-1.5 max-w-full overflow-hidden rounded-lg border-l-2 px-2 py-1 text-xs",
+                    "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs",
                     isMine
-                      ? "border-white/50 bg-white/10"
-                      : "border-primary bg-primary/10"
+                      ? "border-white/40 bg-white/10"
+                      : "border-primary bg-primary/5"
                   )}
                 >
-                  <div className="font-medium opacity-90 truncate">
+                  <div className={cn("font-medium opacity-80")}>
                     {replyToMessage.sender_id === message.sender_id
-                      ? isMine ? "Вы" : (peerName || "Пользователь")
-                      : (peerName || "Пользователь")}
+                      ? isMine
+                        ? "Вы"
+                        : peerName || "Пользователь"
+                      : peerName || "Пользователь"}
                   </div>
-                  <div className="truncate opacity-70 max-w-[200px]">
+                  <div className="truncate opacity-70">
                     {replyToMessage.deleted_at
                       ? "Сообщение удалено"
-                      : replyToMessage.content ||
-                        previewType(replyToMessage.type)}
+                      : replyDecrypted || previewType(replyToMessage.type)}
                   </div>
                 </div>
               )}

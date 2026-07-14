@@ -5,8 +5,10 @@ import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar } from "@/components/impulse/avatar";
 import { formatTime, cn } from "@/lib/format";
-import { Search, PenSquare, MessageCircle, Pin, BellOff, Megaphone, Users, BadgeCheck } from "lucide-react";
-import { searchProfilesByUsername } from "@/lib/impulse";
+import { Search, PenSquare, MessageCircle, Pin, BellOff, Megaphone, Users, BadgeCheck, Archive, ArchiveRestore, Trash2, Bell } from "lucide-react";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { db } from "@/lib/backend";
+import { toggleChatArchived, toggleChatMuted, toggleChatPinned, searchProfilesByUsername } from "@/lib/impulse";
 import type { ChatWithDetails, Profile } from "@/types/db";
 import { toast } from "sonner";
 
@@ -183,7 +185,7 @@ function ChatRow({
   const name =
     chat.type === "direct"
       ? chat.peer?.is_blocked || chat.peer?.is_scam
-        ? (chat.peer?.is_scam ? "СКАЗ · заблокирован" : "Аккаунт заблокирован")
+        ? (chat.peer?.is_scam ? "СКAM · заблокирован" : "Аккаунт заблокирован")
         : chat.peer?.display_name || "Пользователь"
       : chat.title || (chat.type === "channel" ? "Канал" : "Группа");
 
@@ -217,14 +219,56 @@ function ChatRow({
 
   const ChatIcon = chat.type === "channel" ? Megaphone : chat.type === "group" ? Users : null;
 
+  const onPin = async () => {
+    try {
+      const profile = useAuthStore.getState().profile;
+      if (!profile) return;
+      await toggleChatPinned(chat.id, profile.id, !chat.pinned);
+      useChatsStore.getState().upsertChat({ ...chat, pinned: !chat.pinned });
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const onMute = async () => {
+    try {
+      const profile = useAuthStore.getState().profile;
+      if (!profile) return;
+      await toggleChatMuted(chat.id, profile.id, !chat.muted);
+      useChatsStore.getState().upsertChat({ ...chat, muted: !chat.muted });
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const onArchive = async () => {
+    try {
+      const profile = useAuthStore.getState().profile;
+      if (!profile) return;
+      await toggleChatArchived(chat.id, profile.id, !chat.archived);
+      useChatsStore.getState().upsertChat({ ...chat, archived: !chat.archived } as never);
+      toast.success(chat.archived ? "Восстановлено из архива" : "Чат архивирован");
+    } catch { toast.error("Ошибка"); }
+  };
+
+  const onDelete = async () => {
+    if (!confirm("Удалить чат?")) return;
+    try {
+      const profile = useAuthStore.getState().profile;
+      if (!profile) return;
+      await db.from("chat_members").delete().eq("chat_id", chat.id).eq("user_id", profile.id);
+      useChatsStore.getState().removeChat(chat.id);
+      toast.success("Чат удалён");
+    } catch { toast.error("Ошибка"); }
+  };
+
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors",
-        active ? "bg-primary/10" : "hover:bg-sidebar-accent"
-      )}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={onClick}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors",
+            active ? "bg-primary/10" : "hover:bg-sidebar-accent",
+            chat.archived && "opacity-50"
+          )}
+        >
       {chat.type === "direct" ? (
         <Avatar
           profile={chat.peer}
@@ -277,6 +321,27 @@ function ChatRow({
           )}
         </div>
       </div>
-    </button>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={onPin}>
+          {chat.pinned ? <Pin className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
+          {chat.pinned ? "Открепить" : "Закрепить"}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onMute}>
+          {chat.muted ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
+          {chat.muted ? "Включить уведомления" : "Отключить уведомления"}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onArchive}>
+          {chat.archived ? <ArchiveRestore className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+          {chat.archived ? "Восстановить" : "В архив"}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Удалить чат
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

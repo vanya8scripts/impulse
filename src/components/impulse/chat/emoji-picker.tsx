@@ -13,7 +13,7 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    
     setRecent(loadRecent());
   }, [open]);
 
@@ -48,6 +48,12 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
         align="start"
         className="w-[340px] gap-0 p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("[data-emoji-btn]")) {
+            e.preventDefault();
+          }
+        }}
       >
         <div className="border-b border-border p-2">
           <input
@@ -97,6 +103,8 @@ export function EmojiPicker({ onPick }: { onPick: (e: string) => void }) {
                 list.map((e, i) => (
                   <button
                     key={`${e}-${i}`}
+                    data-emoji-btn
+                    onPointerDown={(ev) => ev.preventDefault()}
                     onClick={() => pick(e)}
                     className="flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-transform hover:scale-125 hover:bg-accent"
                   >

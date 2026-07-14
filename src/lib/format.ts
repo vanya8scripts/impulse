@@ -98,7 +98,7 @@ export function isVideoMime(mime: string | null) {
 
 export function displayName(profile: { display_name: string; is_blocked?: boolean; is_scam?: boolean } | null | undefined): string {
   if (!profile) return "Пользователь";
-  if (profile.is_scam) return "СКАЗ · заблокирован";
+  if (profile.is_scam) return "СКAM · заблокирован";
   if (profile.is_blocked) return "Аккаунт заблокирован";
   return profile.display_name;
 }

@@ -5,15 +5,19 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { TicTacToe } from "@/components/impulse/games/tic-tac-toe";
 import { MemoryGame } from "@/components/impulse/games/memory";
 import { GuessNumber } from "@/components/impulse/games/guess-number";
-import { Gamepad2, Grid3x3, Brain, Hash } from "lucide-react";
+import { Game2048 } from "@/components/impulse/games/game-2048";
+import { WhackAMole } from "@/components/impulse/games/whack-a-mole";
+import { Gamepad2, Grid3x3, Brain, Hash, Boxes, Hammer } from "lucide-react";
 import { cn } from "@/lib/format";
 
-type GameId = "tictactoe" | "memory" | "guess";
+type GameId = "tictactoe" | "memory" | "guess" | "2048" | "whack";
 
 const GAMES: { id: GameId; name: string; desc: string; icon: React.ElementType; color: string }[] = [
   { id: "tictactoe", name: "Крестики-нолики", desc: "Сразись с ИИ", icon: Grid3x3, color: "from-violet-500 to-fuchsia-500" },
+  { id: "2048", name: "2048", desc: "Объединяй плитки", icon: Boxes, color: "from-orange-500 to-red-500" },
   { id: "memory", name: "Найди пару", desc: "Тренируй память", icon: Brain, color: "from-blue-500 to-cyan-500" },
-  { id: "guess", name: "Угадай число", desc: "1 до 100", icon: Hash, color: "from-emerald-500 to-teal-500" },
+  { id: "whack", name: "Ударь крота", desc: "Быстрая реакция", icon: Hammer, color: "from-emerald-500 to-green-500" },
+  { id: "guess", name: "Угадай число", desc: "1 до 100", icon: Hash, color: "from-purple-500 to-pink-500" },
 ];
 
 export function GamesModal({
@@ -65,7 +69,9 @@ export function GamesModal({
                 ← Назад к играм
               </button>
               {active === "tictactoe" && <TicTacToe />}
+              {active === "2048" && <Game2048 />}
               {active === "memory" && <MemoryGame />}
+              {active === "whack" && <WhackAMole />}
               {active === "guess" && <GuessNumber />}
             </div>
           )}

@@ -105,7 +105,7 @@ export function ChatArea() {
   const canWrite = !isChannel || !chat.is_official || profile.is_admin || profile.username.toLowerCase() === "vanya";
   const headerName = isDirect
     ? peer?.is_blocked || peer?.is_scam
-      ? (peer?.is_scam ? "СКАЗ · заблокирован" : "Аккаунт заблокирован")
+      ? (peer?.is_scam ? "СКAM · заблокирован" : "Аккаунт заблокирован")
       : peer?.display_name || "Пользователь"
     : chat.title || (isChannel ? "Канал" : "Группа");
 

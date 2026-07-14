@@ -153,7 +153,7 @@ export class CallEngine {
         this.callbacks.onPeerLeft();
       }
     } catch {
-      /* noop */
+      
     }
   }
 
@@ -210,7 +210,7 @@ export class CallEngine {
       try {
         db.removeChannel(this.channel);
       } catch {
-        /* noop */
+        
       }
       this.channel = null;
     }

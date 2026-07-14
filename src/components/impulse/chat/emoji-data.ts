@@ -115,6 +115,6 @@ export function saveRecent(emoji: string) {
     const next = [emoji, ...cur.filter((e) => e !== emoji)].slice(0, 32);
     localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   } catch {
-    /* noop */
+    
   }
 }

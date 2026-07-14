@@ -91,6 +91,7 @@ export interface ChatMember {
   muted: boolean;
   pinned: boolean;
   last_read_at: string | null;
+  archived: boolean;
 }
 
 export interface ChatWithDetails extends Chat {

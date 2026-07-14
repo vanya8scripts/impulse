@@ -89,6 +89,7 @@ export function MessageList({ chatId }: { chatId: string }) {
                   showAvatar={showAvatar}
                   isFirstOfGroup={isFirstOfGroup}
                   peerName={peer?.display_name}
+                  peerProfile={peer || undefined}
                   memberIds={memberIds}
                 />
               );
