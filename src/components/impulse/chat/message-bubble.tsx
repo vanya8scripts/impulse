@@ -57,6 +57,7 @@ export function MessageBubble({
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [decrypted, setDecrypted] = useState<string>(message.content || "");
+  const [replyDecrypted, setReplyDecrypted] = useState<string>("");
 
   useEffect(() => {
     let active = true;
@@ -80,6 +81,23 @@ export function MessageBubble({
       ? s.messages[message.chat_id]?.find((m) => m.id === message.reply_to)
       : null
   );
+
+  useEffect(() => {
+    let active = true;
+    if (replyToMessage?.content && isEncrypted(replyToMessage.content) && memberIds.length) {
+      decryptText(replyToMessage.content, replyToMessage.chat_id, memberIds).then((text) => {
+        if (active) setReplyDecrypted(text);
+      });
+    } else if (replyToMessage?.content) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setReplyDecrypted(replyToMessage.content);
+    } else {
+      setReplyDecrypted("");
+    }
+    return () => {
+      active = false;
+    };
+  }, [replyToMessage?.content, replyToMessage?.chat_id, memberIds]);
 
   if (message.type === "system") {
     return (
@@ -170,20 +188,18 @@ export function MessageBubble({
               {replyToMessage && !deleted && (
                 <div
                   className={cn(
-                    "mb-1.5 rounded-lg border-l-2 px-2 py-1 text-xs",
+                    "mb-1.5 max-w-full overflow-hidden rounded-lg border-l-2 px-2 py-1 text-xs",
                     isMine
-                      ? "border-white/40 bg-white/10"
-                      : "border-primary bg-primary/5"
+                      ? "border-white/50 bg-white/10"
+                      : "border-primary bg-primary/10"
                   )}
                 >
-                  <div className={cn("font-medium opacity-80")}>
+                  <div className="font-medium opacity-90 truncate">
                     {replyToMessage.sender_id === message.sender_id
-                      ? isMine
-                        ? "Вы"
-                        : peerName || "Пользователь"
-                      : peerName || "Пользователь"}
+                      ? isMine ? "Вы" : (peerName || "Пользователь")
+                      : (peerName || "Пользователь")}
                   </div>
-                  <div className="truncate opacity-70">
+                  <div className="truncate opacity-70 max-w-[200px]">
                     {replyToMessage.deleted_at
                       ? "Сообщение удалено"
                       : replyToMessage.content ||

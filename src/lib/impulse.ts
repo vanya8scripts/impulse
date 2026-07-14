@@ -637,6 +637,40 @@ export async function adminSetScam(userId: string, scam: boolean, reason?: strin
   if (error) throw error;
 }
 
+export async function addChatMember(chatId: string, userId: string) {
+  const { error } = await db.rpc("add_chat_member", {
+    p_chat_id: chatId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function removeChatMember(chatId: string, userId: string) {
+  const { error } = await db.rpc("remove_chat_member", {
+    p_chat_id: chatId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+export async function fetchChatMembers(chatId: string) {
+  const { data, error } = await db
+    .from("chat_members")
+    .select("user_id, role, joined_at")
+    .eq("chat_id", chatId);
+  if (error) throw error;
+  const memberRows = (data || []) as Array<{ user_id: string; role: string; joined_at: string }>;
+  if (!memberRows.length) return [];
+  const { data: users } = await db
+    .from("profiles")
+    .select("*")
+    .in("id", memberRows.map((m) => m.user_id));
+  return ((users || []) as Profile[]).map((u) => ({
+    ...u,
+    role: memberRows.find((m) => m.user_id === u.id)?.role || "member",
+  }));
+}
+
 export async function changePasswordWithCurrent(
   currentPassword: string,
   newPassword: string

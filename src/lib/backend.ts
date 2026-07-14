@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 
 const dbUrl = process.env.NEXT_PUBLIC_DB_URL || "";
@@ -19,16 +19,26 @@ export const isBackendConfigured = (() => {
   return !PLACEHOLDER_MARKERS.some((m) => dbUrl.includes(m) || dbKey.includes(m));
 })();
 
-export const db = createClient<Database>(dbUrl, dbKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: "impulse-auth",
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 20,
-    },
+let _client: SupabaseClient<Database> | null = null;
+
+export const db = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop) {
+    if (!_client) {
+      _client = createClient<Database>(dbUrl || "https://placeholder.supabase.co", dbKey || "placeholder", {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          storageKey: "impulse-auth",
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 20,
+          },
+        },
+      });
+    }
+    const val = (_client as Record<string | symbol, unknown>)[prop];
+    return typeof val === "function" ? val.bind(_client) : val;
   },
 });
