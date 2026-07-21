@@ -6,6 +6,7 @@ import { useChatsStore } from "@/stores/chats-store";
 import { sendMessage, uploadAttachment } from "@/lib/impulse";
 import { db } from "@/lib/backend";
 import { encryptText, isEncrypted } from "@/lib/crypto";
+import { isOnline, addToQueue } from "@/hooks/impulse/use-offline";
 import { EmojiPicker } from "@/components/impulse/chat/emoji-picker";
 import {
   Paperclip,
@@ -124,6 +125,38 @@ export function MessageComposer({
       const chat = useChatsStore.getState().chats.find((c) => c.id === chatId);
       const memberIds = chat?.members.map((m) => m.user_id) || [profile.id];
       const encrypted = await encryptText(content, chatId, memberIds);
+
+      if (!isOnline()) {
+        const pendingId = addToQueue({
+          chatId,
+          senderId: profile.id,
+          content,
+          encrypted,
+          replyTo: reply?.id || null,
+        });
+        useChatsStore.getState().addMessage(chatId, {
+          id: pendingId,
+          chat_id: chatId,
+          sender_id: profile.id,
+          content: encrypted,
+          type: "text",
+          attachment_url: null,
+          attachment_name: null,
+          attachment_size: null,
+          attachment_mime: null,
+          duration: null,
+          reply_to: reply?.id || null,
+          created_at: new Date().toISOString(),
+          edited_at: null,
+          deleted_at: null,
+          status: "sending",
+        } as never);
+        setText("");
+        setReply(null);
+        toast.success("Сообщение в очереди — отправится при появлении интернета");
+        return;
+      }
+
       await sendMessage({
         chatId,
         senderId: profile.id,

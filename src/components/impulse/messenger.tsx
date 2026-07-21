@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRealtime } from "@/hooks/impulse/use-realtime";
+import { useOfflineMode } from "@/hooks/impulse/use-offline";
 import { useChatsStore } from "@/stores/chats-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Sidebar } from "@/components/impulse/sidebar";
@@ -11,7 +12,7 @@ import { NewChatModal } from "@/components/impulse/sidebar/new-chat-modal";
 import { CallOverlay } from "@/components/impulse/calls/call-overlay";
 import { EmptyChatState } from "@/components/impulse/chat/empty-state";
 import { AdminPanel } from "@/components/impulse/admin/admin-panel";
-import { Menu, Settings as SettingsIcon, LogOut, Shield, X, Gamepad2 } from "lucide-react";
+import { Menu, Settings as SettingsIcon, LogOut, Shield, X, Gamepad2, WifiOff } from "lucide-react";
 import { Avatar } from "@/components/impulse/avatar";
 import { GamesModal } from "@/components/impulse/games/games-modal";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
 
 export function Messenger() {
   useRealtime();
+  const { online, queueCount } = useOfflineMode();
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const activeChatId = useChatsStore((s) => s.activeChatId);
@@ -51,7 +53,20 @@ export function Messenger() {
   const isAdmin = profile.is_admin || profile.username.toLowerCase() === "vanya";
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-background flex-col">
+      {!online && (
+        <div className="flex items-center justify-center gap-2 bg-orange-500/90 px-4 py-1.5 text-sm font-medium text-white">
+          <WifiOff className="h-4 w-4" />
+          Нет подключения к интернету
+          {queueCount > 0 && <span className="opacity-80">· {queueCount} в очереди</span>}
+        </div>
+      )}
+      {online && queueCount > 0 && (
+        <div className="flex items-center justify-center gap-2 bg-primary/90 px-4 py-1.5 text-sm font-medium text-primary-foreground">
+          Отправка {queueCount} сообщений из очереди…
+        </div>
+      )}
+      <div className="flex flex-1 overflow-hidden">
       <div
         className={`${
           mobileSidebar ? "flex" : "hidden"
@@ -132,6 +147,8 @@ export function Messenger() {
         ) : (
           <EmptyChatState onOpenSidebar={() => setMobileSidebar(true)} />
         )}
+      </div>
+
       </div>
 
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
