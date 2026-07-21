@@ -18,19 +18,27 @@ jobs:
         with:
           bun-version: latest
       - uses: dtolnay/rust-toolchain@stable
-      - uses: tauri-apps/tauri-action@v0
+      - name: Install bun deps
+        run: bun install --frozen-lockfile
+      - name: Install tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+      - name: Build Tauri app
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXT_PUBLIC_DB_URL: ${{ secrets.NEXT_PUBLIC_DB_URL }}
           NEXT_PUBLIC_DB_KEY: ${{ secrets.NEXT_PUBLIC_DB_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+        run: cargo tauri build --target x86_64-pc-windows-msvc
+      - name: Upload EXE to Release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Импульс ${{ github.ref_name }}"
-          releaseBody: "Новая версия мессенджера Импульс."
-          releaseDraft: false
+          files: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          name: "Импульс ${{ github.ref_name }}"
+          body: "Импульс — мессенджер. Версия ${{ github.ref_name }}."
+          draft: false
           prerelease: false
-          args: --target x86_64-pc-windows-msvc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-android:
     runs-on: ubuntu-latest
@@ -44,6 +52,8 @@ jobs:
           distribution: "temurin"
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools build-tools;34.0.0 platforms;android-34"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -58,37 +68,39 @@ jobs:
       - name: Setup Capacitor
         run: |
           bun add -d @capacitor/cli
-          bun add @capacitor/core @capacitor/android @capacitor/splash-screen @capacitor/push-notifications
+          bun add @capacitor/core @capacitor/android @capacitor/splash-screen
           cp capacitor/capacitor.config.ts ./capacitor.config.ts
           npx cap add android
-          npx cap sync
+          npx cap copy android
+          npx cap sync android
 
-      - name: Build APK
+      - name: Build APK debug
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
       - name: Sign APK
-        working-directory: android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/impulse.keystore
           $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
-            --ks release.keystore \
+            --ks /tmp/impulse.keystore \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass "pass:$KEYSTORE_PASSWORD" \
             --key-pass "pass:$KEY_PASSWORD" \
-            --out app-release-signed.apk \
-            app/build/outputs/apk/release/app-release-unsigned.apk
+            --out /tmp/impulse-signed.apk \
+            android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app-release-signed.apk
+          files: /tmp/impulse-signed.apk
           name: "Импульс ${{ github.ref_name }}"
-          body: "Новая версия мессенджера Импульс."
+          body: "Импульс — мессенджер. Версия ${{ github.ref_name }}."
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
