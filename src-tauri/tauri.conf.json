@@ -2,12 +2,12 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Импульс",
   "version": "1.0.0",
-  "identifier": "ru.impulse.app",
+  "identifier": "ru.impulse.desktop",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build:pages"
+    "beforeDevCommand": "bun install && bun run dev",
+    "beforeBuildCommand": "bun install && bun run build:pages"
   },
   "app": {
     "windows": [
